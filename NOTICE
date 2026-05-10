@@ -1,0 +1,14 @@
+DONNA — open-source delegation orchestration for legal practice
+Copyright (c) 2026 The DONNA Authors
+
+This product is licensed under the GNU Affero General Public License v3.0
+(AGPLv3). See LICENSE for the full text.
+
+The hosted runtime at https://donnaoss.com uses commercially-licensed
+audit-chain components (the IDR engine, NEXUS tier) that are not part of
+this distribution. The protocol the engine implements is open (happi.md
+v1.1).
+
+"DONNA" is an unregistered trademark of the DONNA project. Distributing a
+fork under a different name complies with AGPLv3 alone — distributing a
+fork as "DONNA" requires adherence to the trademark policy (TBD).

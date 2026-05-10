@@ -1,0 +1,72 @@
+name: Smoke Harness (all 6 scenarios)
+
+# Run the end-to-end clone-to-running smoke harness on every PR and nightly.
+# Each scenario exercises a full IDR emission path with MOCK_PROVIDER=1 so
+# no live API budget is consumed. The harness exits non-zero if any scenario
+# fails to produce a valid, verifiable IDR chain entry.
+
+on:
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: "0 3 * * *"   # 03:00 UTC nightly
+  workflow_dispatch:       # allow manual trigger
+
+jobs:
+  smoke:
+    name: Smoke harness — 6 scenarios
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Make harness executable
+        run: chmod +x scripts/smoke-harness.sh
+
+      - name: Run smoke harness
+        env:
+          MOCK_PROVIDER: "1"
+          DONNA_NOTARISE_KEY: donna-public-demo-key-2026-05-08
+          # Clone from the checked-out workspace (no network needed)
+          DONNA_REPO_URL: ${{ github.workspace }}
+        run: bash scripts/smoke-harness.sh
+
+      - name: Upload smoke log on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoke-harness-log
+          path: /tmp/donna-smoke-*/log.txt
+          retention-days: 7
+
+  pytest-smoke:
+    name: pytest test_smoke_harness
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: smoke
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install pytest
+        run: pip install --quiet pytest
+
+      - name: Run pytest smoke test
+        env:
+          MOCK_PROVIDER: "1"
+          DONNA_NOTARISE_KEY: donna-public-demo-key-2026-05-08
+          DONNA_REPO_URL: ${{ github.workspace }}
+        run: pytest tests/test_smoke_harness.py -v

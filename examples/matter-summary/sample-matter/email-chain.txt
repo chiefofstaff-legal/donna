@@ -1,0 +1,23 @@
+SYNTHETIC EMAIL CHAIN — NOT REAL
+
+From: client@acme.example  To: lawyer@firm.example  Date: 2024-09-04
+Subject: Clause 14.2 dispute
+
+We believe Beta Ltd has failed to provide the required 30 days notice
+before ceasing services on 2024-08-30. Please advise.
+
+---
+
+From: lawyer@firm.example  To: client@acme.example  Date: 2024-09-05
+Subject: Re: Clause 14.2 dispute
+
+Reviewed clause 14.2. Beta's notice of 2024-08-01 appears valid.
+However the effective cessation date (2024-08-30) is only 29 days —
+one day short. We have grounds to claim breach.
+
+---
+
+From: client@acme.example  To: lawyer@firm.example  Date: 2024-09-06
+Subject: Re: Clause 14.2 dispute
+
+Understood. Please proceed with a formal letter before action.

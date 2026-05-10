@@ -1,0 +1,271 @@
+#!/usr/bin/env python3
+"""
+DONNA · notarise — generate and verify IDR (Intent Decision Record) chains.
+
+Stdlib only. No dependencies. Implements the audit-chain primitive at the heart
+of DONNA: every delegated decision becomes a structured record, signed with
+HMAC-SHA256, chained via previous_hash, replayable, regulator-ready.
+
+Usage:
+  notarise sign --intent "send Sarah the M&A precedent" \\
+                 --previous-hash <sha> \\
+                 --signer "donna-bot" \\
+                 --confidence 0.92
+
+  notarise verify --chain PROBAT.md         # verify the whole chain
+  notarise verify --chain PROBAT.md --at 3  # verify entry 3 only
+  notarise demo                             # write a 3-entry sample chain to stdout
+
+The repository at chiefofstaff-legal/donna uses this script to maintain
+PROBAT.md — the self-notarising audit chain at the repo root. Every commit
+generates an IDR. The chain notarises itself. DONNA probat.
+
+Protocol reference: happi.md v1.1 ·
+  https://gist.github.com/architext1/808548dd25cfac5cc47fb6e910b79292
+"""
+from __future__ import annotations
+
+import argparse
+import hashlib
+import hmac
+import json
+import os
+import sys
+import textwrap
+import time
+from dataclasses import asdict, dataclass
+from typing import Iterable, List, Optional
+
+# ─── Protocol constants ──────────────────────────────────────────────
+GENESIS_PREVIOUS_HASH = "0" * 64
+PROTOCOL_VERSION = "happi/1.1"
+SIGNATURE_ALGORITHM = "HMAC-SHA256"
+ENV_KEY = "DONNA_NOTARISE_KEY"  # secret used to sign; must be set for sign + verify
+
+# ─── IDR record ──────────────────────────────────────────────────────
+@dataclass
+class IDR:
+    """Intent Decision Record — the audit-chain primitive."""
+
+    decision_id: str          # ULID-shaped; here we use timestamp-nanoseconds for stdlib portability
+    timestamp: str            # ISO 8601 UTC
+    protocol: str             # e.g. "happi/1.1"
+    intent: str               # the unstructured-then-structured intent
+    signer: str               # who/what produced this decision (agent id, human, hybrid)
+    confidence: float         # [0.0, 1.0] — the producer's stated confidence
+    previous_hash: str        # 64-hex SHA-256 of the previous IDR's canonical form
+    metadata: dict            # free-form context (model, route, commit_sha, etc.)
+    signature: str = ""       # HMAC-SHA256 of the canonical form, set by sign()
+
+    def canonical_payload(self) -> bytes:
+        """Stable JSON serialisation of every field except `signature` itself.
+        The signature signs THIS payload. Order is fixed by `sort_keys=True`.
+        """
+        d = asdict(self)
+        d.pop("signature", None)
+        return json.dumps(d, sort_keys=True, separators=(",", ":")).encode("utf-8")
+
+    def hash(self) -> str:
+        """SHA-256 of the canonical payload (used as `previous_hash` for the next)."""
+        return hashlib.sha256(self.canonical_payload()).hexdigest()
+
+
+# ─── Signing + verification ──────────────────────────────────────────
+def _key() -> bytes:
+    raw = os.environ.get(ENV_KEY)
+    if not raw:
+        sys.stderr.write(
+            f"error: ${ENV_KEY} not set. Set a per-firm signing secret in your environment.\n"
+            f"  export {ENV_KEY}=$(openssl rand -hex 32)   # one-time per firm\n"
+        )
+        sys.exit(2)
+    return raw.encode("utf-8")
+
+
+def sign(record: IDR) -> IDR:
+    sig = hmac.new(_key(), record.canonical_payload(), hashlib.sha256).hexdigest()
+    record.signature = sig
+    return record
+
+
+def verify_one(record: IDR, expected_previous: Optional[str] = None) -> List[str]:
+    """Return list of failure reasons; empty list = valid."""
+    failures: List[str] = []
+    expected_sig = hmac.new(_key(), record.canonical_payload(), hashlib.sha256).hexdigest()
+    if not hmac.compare_digest(expected_sig, record.signature):
+        failures.append(f"signature mismatch (expected {expected_sig[:8]}…, got {record.signature[:8]}…)")
+    if expected_previous is not None and record.previous_hash != expected_previous:
+        failures.append(f"chain break: previous_hash expected {expected_previous[:8]}…, got {record.previous_hash[:8]}…")
+    if record.protocol != PROTOCOL_VERSION:
+        failures.append(f"unexpected protocol {record.protocol!r} (expected {PROTOCOL_VERSION!r})")
+    if not (0.0 <= record.confidence <= 1.0):
+        failures.append(f"confidence {record.confidence} out of [0.0, 1.0]")
+    return failures
+
+
+def verify_chain(records: Iterable[IDR]) -> List[str]:
+    """Verify a sequence of IDRs as a chain. Empty list = valid chain."""
+    expected_prev = GENESIS_PREVIOUS_HASH
+    for i, r in enumerate(records, start=1):
+        for f in verify_one(r, expected_prev):
+            return [f"entry {i}: {f}"]
+        expected_prev = r.hash()
+    return []
+
+
+# ─── Sample chain (used by `demo` and as PROBAT.md seed) ─────────────
+def demo_chain() -> List[IDR]:
+    """Three sample IDRs demonstrating the chain protocol. Stable timestamps."""
+    samples = [
+        ("Bootstrap repository: README + LICENSE + ROADMAP",
+         "donna-bot", 0.99, {"commit": "bootstrap", "category": "repo"}),
+        ("Adopt category: Delegation Orchestration Layer (Craig Miller manifesto)",
+         "donna-bot", 0.97, {"commit": "manifesto", "category": "positioning"}),
+        ("Adopt sound bite: 'DONNA handles the work around the work — judgement stays with the lawyer.'",
+         "donna-bot", 0.95, {"commit": "soundbite", "category": "positioning"}),
+    ]
+    chain: List[IDR] = []
+    prev = GENESIS_PREVIOUS_HASH
+    base_ts = 1778259600  # 2026-05-08 17:00 UTC, anchor
+    for i, (intent, signer, conf, meta) in enumerate(samples, start=1):
+        rec = IDR(
+            decision_id=f"idr_{base_ts + i}_{i:03d}",
+            timestamp=time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(base_ts + i)),
+            protocol=PROTOCOL_VERSION,
+            intent=intent,
+            signer=signer,
+            confidence=conf,
+            previous_hash=prev,
+            metadata=meta,
+        )
+        rec = sign(rec)
+        chain.append(rec)
+        prev = rec.hash()
+    return chain
+
+
+# ─── PROBAT.md parser (markdown-fenced JSON blocks) ──────────────────
+def parse_probat(path: str) -> List[IDR]:
+    try:
+        text = open(path, "r", encoding="utf-8").read()
+    except FileNotFoundError:
+        raise ValueError(f"chain file not found: {path}")
+    out: List[IDR] = []
+    in_block = False
+    buf: List[str] = []
+    block_start = 0
+    for lineno, line in enumerate(text.splitlines(), start=1):
+        if line.strip().startswith("```idr"):
+            in_block = True
+            buf = []
+            block_start = lineno
+            continue
+        if in_block and line.strip().startswith("```"):
+            in_block = False
+            try:
+                d = json.loads("".join(buf))
+            except json.JSONDecodeError as exc:
+                raise ValueError(f"malformed IDR JSON near line {block_start}: {exc}")
+            try:
+                out.append(IDR(**d))
+            except TypeError as exc:
+                raise ValueError(f"IDR block near line {block_start} has wrong fields: {exc}")
+            continue
+        if in_block:
+            buf.append(line)
+    if in_block:
+        raise ValueError(f"unclosed ```idr block starting at line {block_start}")
+    return out
+
+
+# ─── CLI ─────────────────────────────────────────────────────────────
+def cmd_sign(args: argparse.Namespace) -> int:
+    rec = IDR(
+        decision_id=args.decision_id or f"idr_{int(time.time()*1e9)}",
+        timestamp=time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        protocol=PROTOCOL_VERSION,
+        intent=args.intent,
+        signer=args.signer,
+        confidence=args.confidence,
+        previous_hash=args.previous_hash,
+        metadata=json.loads(args.metadata) if args.metadata else {},
+    )
+    rec = sign(rec)
+    print(json.dumps(asdict(rec), indent=2, sort_keys=True))
+    sys.stderr.write(f"hash: {rec.hash()}\n")
+    return 0
+
+
+def cmd_verify(args: argparse.Namespace) -> int:
+    try:
+        records = parse_probat(args.chain)
+    except (FileNotFoundError, ValueError) as exc:
+        sys.stderr.write(f"error: {exc}\n")
+        return 1
+    if args.at is not None:
+        if args.at < 1 or args.at > len(records):
+            sys.stderr.write(
+                f"error: entry {args.at} out of range"
+                f" (chain has {len(records)} record(s))\n"
+            )
+            return 2
+        # Single-entry verification: check signature/protocol/confidence only,
+        # not the chain link (previous_hash) — caller may not have context.
+        failures = verify_one(records[args.at - 1])
+        if failures:
+            for f in failures:
+                sys.stderr.write(f"FAIL: entry {args.at}: {f}\n")
+            return 1
+        sys.stderr.write(f"OK: 1 record(s) verified ({SIGNATURE_ALGORITHM})\n")
+        return 0
+    failures = verify_chain(records)
+    if failures:
+        for f in failures:
+            sys.stderr.write(f"FAIL: {f}\n")
+        return 1
+    sys.stderr.write(f"OK: {len(records)} record(s) verified ({SIGNATURE_ALGORITHM})\n")
+    return 0
+
+
+def cmd_demo(_: argparse.Namespace) -> int:
+    chain = demo_chain()
+    for rec in chain:
+        print("```idr")
+        print(json.dumps(asdict(rec), indent=2, sort_keys=True))
+        print("```")
+        print()
+    return 0
+
+
+def main(argv: Optional[List[str]] = None) -> int:
+    parser = argparse.ArgumentParser(
+        prog="notarise",
+        description="DONNA · IDR audit-chain signer/verifier (stdlib only)",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog=textwrap.dedent(__doc__ or ""),
+    )
+    sub = parser.add_subparsers(dest="cmd", required=True)
+
+    p_sign = sub.add_parser("sign", help="Sign a single IDR; emit JSON to stdout.")
+    p_sign.add_argument("--intent", required=True)
+    p_sign.add_argument("--signer", default="donna-bot")
+    p_sign.add_argument("--confidence", type=float, default=1.0)
+    p_sign.add_argument("--previous-hash", default=GENESIS_PREVIOUS_HASH)
+    p_sign.add_argument("--decision-id", default=None)
+    p_sign.add_argument("--metadata", default=None, help='JSON object string')
+    p_sign.set_defaults(func=cmd_sign)
+
+    p_verify = sub.add_parser("verify", help="Verify a PROBAT.md chain.")
+    p_verify.add_argument("--chain", required=True)
+    p_verify.add_argument("--at", type=int, default=None, help="Verify only entry N (1-indexed)")
+    p_verify.set_defaults(func=cmd_verify)
+
+    p_demo = sub.add_parser("demo", help="Emit a 3-entry sample chain.")
+    p_demo.set_defaults(func=cmd_demo)
+
+    args = parser.parse_args(argv)
+    return args.func(args)
+
+
+if __name__ == "__main__":
+    sys.exit(main())

@@ -1,0 +1,152 @@
+# Changelog
+
+All notable changes to DONNA are documented here. Format follows
+[Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
+
+## [0.9.0] — 2026-05-09
+
+Public-launch surface: DONNA backronym, Munir framing, IDR notariser, roadmap, OSS hygiene.
+
+### Added
+
+- **`bin/notarise`** — stdlib Python HMAC-SHA256 IDR (Intent Decision Record)
+  signer + verifier. Subcommands: `sign`, `verify`, `demo`. ~200 LOC, no
+  dependencies. Verifies `PROBAT.md` chains end-to-end.
+- **`PROBAT.md`** — self-notarising chain demo with three seed IDRs. Public
+  signing key `donna-public-demo-key-2026-05-08`. Verifiable in 60s with
+  `bin/notarise verify --chain PROBAT.md`.
+- **`ROADMAP.md`** — 5-waypoint journey vector: voice intent → skill
+  orchestration → IDR audit chain → AI-agent PR review → full Delegation
+  Orchestration Layer. Published before launch on the principle that
+  *"a clear starting point and a clear direction makes being incomplete
+  acceptable"* (Craig Miller, 2026-05-08).
+- **`CONTRIBUTING.md`**, **`CODE_OF_CONDUCT.md`**, **`SECURITY.md`** — OSS
+  hygiene baseline. AGPL-3.0 contribution model, Contributor Covenant 2.1,
+  responsible-disclosure protocol.
+
+### Changed
+
+- **`README.md`** rewritten with the DONNA backronym table
+  (D-O-N-N-A → Decision-Oriented Network Notarisation for Attorneys),
+  the *Munir v SSHD* [2026] UKUT 81 paragraph, and the architectural
+  positioning *"open source delegation orchestration for legal practice"*
+  superseding the prior *"voice-first time tracker"* framing. The voice
+  surface and time-tracking remain — they are now part of a larger
+  delegation-orchestration story, not the headline.
+
+## [0.8.0] — 2026-05-05
+
+Claude Desktop drop-in. MCP server + Skill + README inversion.
+
+### Refactoring (5-wave autonomous DRY/KISS/CC sweep across `client/`)
+
+- **Wave 1:** `main.py` arg parser rewritten with `argparse.add_mutually_exclusive_group()`.
+  Eliminates the multi-line ternary at the old line 197 and the repetitive
+  `mode = "--flag" in args` pattern. Side effect: passing two mode flags
+  (e.g. `--history --export-today`) now errors cleanly instead of silently
+  dispatching to whichever branch ran first.
+- **Wave 2:** `_serialise` and `_format` in `main.py` use module-top dispatch
+  dicts keyed on type. `ClarifyRequest` gains `to_dict()` for symmetric
+  serialisation across all three result types.
+- **Wave 3:** `donna/store.py` introduces `_StoreSpec` + generic `_BaseStore[T]`.
+  `add()`, `list()`, `_row_to_model()` are inherited from the base; subclasses
+  set `_SPEC` only. Removes parallel duplication across the two stores.
+- **Wave 4:** `donna/router.py` extracts `_make_clarify` helper and uses
+  `dataclasses.asdict(parsed)` to spread `ParsedDelegation` into `Task()`.
+  `_handle_delegation` shrinks from 33 lines to 12.
+- **Wave 5:** `voice_pipeline.run_vad` simplified — the previous
+  `threading.Event` + daemon-thread sleep was functionally equivalent to
+  `time.sleep()` since nothing else could ever set the event. `import threading`
+  dropped (no other usage in the module).
+- **Wave 6b1:** `confirmation._duration_phrase` extracts a `_plural(n, unit)`
+  helper. Drops cyclomatic complexity from 9 to 4.
+
+### Added
+
+- **MCP server** (`client/donna/mcp_server.py`, 255 lines) — Claude Desktop
+  drop-in.
+- **DONNA skill** (`donna-skill/SKILL.md`, also `skills/donna/`) — analyse /
+  draft / review / export stub handlers.
+- **TypeScript MCP server** (`mcp-servers/donna/`, ported from
+  CodeTonight-SA/donna-legal per PR #10) — node implementation alongside
+  the Python one.
+
+### Tests
+
+- 31 new tests added (`tests/test_main_dispatch.py`,
+  `tests/test_model_sync_invariant.py`):
+  - Direct dispatch coverage for `_serialise` / `_format` / `ClarifyRequest.to_dict`.
+  - Argparse coverage for mutual exclusion, defaults, `--no-tts`, `--format`.
+  - Sync invariants pinning `ParsedDelegation ⊆ Task` and `_StoreSpec.columns ⊆
+    model fields` — catches future drift that would crash refactored code.
+- Total: 162 → 193 tests. Suite runtime: 1.47s → 0.55s.
+
+### Docs
+
+- README roadmap refreshed: v0.3-v0.7 marked shipped (was stuck at v0.2).
+- Root `CLAUDE.md` repo layout updated to include `export.py`, `webhook.py`,
+  `speaker.py`, `confirmation.py`. Stale branch reference replaced. Spurious
+  `DONNA_HOURLY_RATE` row removed from config table; replaced with the actual
+  `DONNA_WEBHOOK_URL`.
+- `client/CLAUDE.md` package table notes `store.py` uses the generic
+  `_BaseStore[T]` pattern.
+
+## [0.7.0] — 2025
+
+CLI history + export.
+
+- `python main.py --history` — formatted table of today's time entries with
+  totals.
+- `python main.py --export-today` — CSV (default) or JSON (`--format json`)
+  to stdout.
+
+## [0.6.0] — 2025
+
+Webhook delivery.
+
+- `donna/webhook.py` — POST every intent to `DONNA_WEBHOOK_URL` if set.
+- Pure stdlib (`urllib.request`); no extra dependency.
+
+## [0.5.0] — 2025
+
+Session summary TTS.
+
+- Voice mode speaks `daily_summary()` on Ctrl-C / EOF exit.
+- `TimeEntryStore.daily_summary()` returns a human-readable string ("You've
+  logged N hours across M matters today").
+
+## [0.4.0] — 2025
+
+SQLite query + Clio/CSV export.
+
+- `TimeEntryStore.query(date_from, date_to)` — date-range filter.
+- `donna/export.py` — Clio-compatible JSON + CSV exporters.
+
+## [0.3.0] — 2025
+
+DONNA's confirmation voice.
+
+- `donna/speaker.py` — TTS playback via OpenAI `audio.speech.create`.
+- `ConfirmationFormatter` — natural-language readback strings.
+- `--no-tts` flag to disable spoken confirmations.
+
+## [0.2.0] — 2025
+
+Voice pipeline.
+
+- `donna/audio.py` — microphone capture (sounddevice).
+- `donna/vad.py` — voice activity detection (webrtcvad).
+- `donna/transcriber.py` — Whisper API (default) and local backend.
+- `donna/voice_pipeline.py` — end-to-end orchestration.
+- `python main.py --voice` — record an utterance, transcribe, route.
+
+## [0.1.0] — 2025
+
+Text-mode pipeline.
+
+- REPL: type a time entry or delegation, see the parsed result.
+- `donna/extractor.py` — LLM intent extraction (OpenAI-compatible chat).
+- `donna/router.py` — heuristic intent classifier + routing.
+- `donna/store.py` — SQLite persistence for time entries and tasks.
+- `donna/models.py` — pure dataclasses for the domain types.
+- `python main.py --pipe` — JSON streaming mode for scripting.

@@ -1,0 +1,8 @@
+SERVICES AGREEMENT (SYNTHETIC — NOT A REAL DOCUMENT)
+Dated: 2024-01-15
+Parties: Acme Corp (Client) and Beta Ltd (Provider)
+
+Clause 14.2 — Termination
+Either party may terminate this agreement by giving thirty (30) days written
+notice to the other party. Termination does not affect any accrued rights or
+obligations as at the date of termination.

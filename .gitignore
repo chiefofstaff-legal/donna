@@ -1,0 +1,50 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Node
+node_modules/
+dist/
+build/
+.next/
+*.tsbuildinfo
+
+# Runtime config / secrets
+.env
+.env.*
+*.env
+secrets/
+
+# macOS
+.DS_Store
+
+# Editors / IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs / runtime
+*.log
+logs/
+.donna-cache/
+audio-cache/
+
+# Coverage
+.coverage
+htmlcov/
+coverage.xml
+
+# Internal launch materials (not for public repo)
+launch/
+
+# mutation testing artefacts
+bin/notarise.py
+mutants/
+.mutmut-cache

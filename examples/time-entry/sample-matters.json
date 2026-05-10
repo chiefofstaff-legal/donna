@@ -1,0 +1,5 @@
+[
+  {"id": "SJ-2024-0341", "name": "Smith v. Jones", "client": "Smith", "type": "litigation"},
+  {"id": "AB-2024-0102", "name": "Arnold v. Baker", "client": "Arnold", "type": "contract"},
+  {"id": "GH-2025-0017", "name": "Green Holdings acquisition", "client": "Green Holdings", "type": "M&A"}
+]

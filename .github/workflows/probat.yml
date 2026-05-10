@@ -1,0 +1,41 @@
+name: Probat (audit-chain verify)
+
+# Verify the self-notarising audit chain in PROBAT.md on every push and PR.
+# Donna probat. — the repository proves itself.
+#
+# What this gate enforces:
+#   - bin/notarise verify --chain PROBAT.md exits 0
+#   - HMAC-SHA256 signatures match for every IDR record
+#   - previous_hash chain is unbroken from genesis to head
+#
+# Reference: PROBAT.md (Appendix B explains the published demo signing key).
+
+on:
+  push:
+    branches: [main, "feat/**"]
+  pull_request:
+    branches: [main]
+
+jobs:
+  verify-chain:
+    name: Verify PROBAT chain
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Verify the chain (whole)
+        env:
+          DONNA_NOTARISE_KEY: donna-public-demo-key-2026-05-08
+        run: |
+          python3 bin/notarise verify --chain PROBAT.md
+
+      - name: Verify entry 1 (spot check)
+        env:
+          DONNA_NOTARISE_KEY: donna-public-demo-key-2026-05-08
+        run: |
+          python3 bin/notarise verify --chain PROBAT.md --at 1

@@ -62,6 +62,21 @@ Inverted Red Hat: open surface, proprietary substrate. The lawyer can host the s
 
 ---
 
+## First reference implementation
+
+The running MVP at **[free.donnaoss.com](https://free.donnaoss.com)** is open-sourced at **[chiefofstaff-legal/nexus](https://github.com/chiefofstaff-legal/nexus)** under AGPL-3.0. It implements the happi/1.1 protocol from this repository end-to-end: a PROBAT.md chain emitted by nexus verifies via `bin/notarise verify --chain` from this repo, byte-for-byte.
+
+```bash
+git clone https://github.com/chiefofstaff-legal/nexus.git
+export DONNA_NOTARISE_KEY=nexus-public-demo-key-2026-05-11
+python3 bin/notarise verify --chain ../nexus/PROBAT.md
+# OK: 3 record(s) verified (HMAC-SHA256)
+```
+
+nexus is the public face — full UI, FastAPI backend, document processing, audit chain, 27 OSS services. The 5 NEXUS-tier services (sensitivity router, council, classifier, PII detection, scorer) live in a separate private repository at `CodeTonight-SA/nexus-engine` and are imported only by the hosted deployment. The open-source clone runs with a simpler single-model router.
+
+---
+
 ## Install
 
 > **Status:** alpha. Public release `v0.1.0` is **not yet tagged**.

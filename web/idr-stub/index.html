@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#0a0a0a">
+<title>What is an IDR? — DONNA</title>
+<meta name="description" content="A plain-language explainer of the Intent Decision Record — the smallest unit of audited delegation in DONNA.">
+<link rel="canonical" href="https://free.donnaoss.com/idr-stub/">
+<meta property="og:title" content="What is an IDR? — DONNA">
+<meta property="og:description" content="The Intent Decision Record is the smallest unit of audited delegation. Sign one, chain it to the last, replay the chain forever.">
+<meta property="og:image" content="https://free.donnaoss.com/og.png">
+<meta property="og:image:alt" content="DONNA — Decision-Oriented Network Notarisation for Attorneys. Open source. free.donnaoss.com">
+<style>
+:root {
+  --accent: #b35e15;
+  --accent-2: #7c3a08;
+  --ink: #111111;
+  --muted: #5b5550;
+  --rule: #d8d3cc;
+  --paper: #ffffff;
+  --paper-2: #f6f3ee;
+  --paper-3: #ece7df;
+  --cover-bg: #0a0a0a;
+  --cover-fg: #fafafa;
+  --cover-muted: #b8b3ad;
+  --gutter: clamp(1.25rem, 4vw, 2.5rem);
+  --serif: 'IBM Plex Serif', Georgia, serif;
+  --mono: 'IBM Plex Mono', 'SF Mono', Menlo, monospace;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: var(--paper-2); color: var(--ink); font-family: var(--serif); font-weight: 300; font-size: clamp(16px, 0.4vw + 0.85rem, 18px); line-height: 1.7; -webkit-font-smoothing: antialiased; }
+a { color: var(--accent); text-decoration: none; }
+a:hover { color: var(--accent-2); }
+a:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+
+.shell { width: 100%; max-width: 760px; margin-inline: auto; padding-inline: var(--gutter); padding-block: clamp(2rem, 5vw, 3rem); }
+.topbar { display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap; margin-bottom: 2rem; }
+.brand { font-family: var(--mono); font-size: 0.85rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--accent); }
+.brand a { color: var(--accent); }
+.back { font-family: var(--mono); font-size: 0.8rem; color: var(--muted); }
+
+h1 { font-size: clamp(1.6rem, 3.5vw, 2.4rem); font-weight: 400; margin-bottom: 0.6rem; letter-spacing: -0.01em; }
+.lede { color: var(--muted); margin-bottom: 2rem; font-size: 1.1rem; }
+
+h2 { font-size: clamp(1.2rem, 2vw, 1.4rem); font-weight: 500; margin-block: 2rem 0.8rem; letter-spacing: -0.01em; }
+p { margin-block: 0.8rem; max-width: 64ch; }
+
+.example { background: var(--paper); border: 1px solid var(--rule); border-radius: 8px; padding: 1.25rem 1.5rem; margin-block: 1.5rem; }
+.example .label { font-family: var(--mono); font-size: 0.75rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--accent); margin-bottom: 0.6rem; }
+.example pre { font-family: var(--mono); font-size: 0.85rem; line-height: 1.5; white-space: pre-wrap; word-wrap: break-word; color: var(--ink); }
+
+.callout { background: var(--cover-bg); color: var(--cover-fg); padding: 2rem 1.75rem; border-radius: 12px; margin-block: 2.5rem; }
+.callout h3 { font-size: clamp(1.2rem, 2vw, 1.5rem); font-weight: 400; color: var(--cover-fg); margin-bottom: 0.8rem; }
+.callout p { color: var(--cover-muted); margin-bottom: 1.5rem; }
+.callout a.cta { display: inline-flex; align-items: center; min-height: 48px; padding: 0.85rem 1.5rem; background: var(--accent); color: #fff; border-radius: 6px; font-family: var(--mono); font-size: 0.85rem; letter-spacing: 0.05em; text-transform: uppercase; }
+.callout a.cta:hover { background: var(--accent-2); color: #fff; }
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --ink: #f4eee5;
+    --muted: #b8b0a4;
+    --rule: #3a342c;
+    --paper: #15110d;
+    --paper-2: #1f1a14;
+    --paper-3: #2b251c;
+  }
+  body { background: var(--paper-2); color: var(--ink); }
+}
+</style>
+</head>
+<body>
+<main class="shell">
+  <div class="topbar">
+    <span class="brand"><a href="/">DONNA</a></span>
+    <a class="back" href="/">← Back to overview</a>
+  </div>
+
+  <h1>What is an IDR?</h1>
+  <p class="lede">An <strong>Intent Decision Record</strong> is the smallest unit of audited delegation. Every time DONNA hands work to a person or a model, one IDR is signed and chained to the previous one.</p>
+
+  <h2>The shape</h2>
+  <p>An IDR is a small structured object — a few fields, no surprises:</p>
+
+  <div class="example">
+    <span class="label">example IDR</span>
+    <pre>{
+  "intent":         "Review clause 7 of the partnership agreement.",
+  "signer":         "associate.partner@firm.example",
+  "model":          "groq/llama-3.3-70b-versatile",
+  "confidence":     0.82,
+  "evidence_refs":  ["doc/agreement_v3.pdf#p7"],
+  "previous_hash":  "9f1c…3b",
+  "ts":             "2026-05-11T18:30:00Z",
+  "signature":      "HMAC-SHA256(…)"
+}</pre>
+  </div>
+
+  <h2>Why it matters</h2>
+  <p>Most "AI for legal" leaves you with a chat log. A chat log is not evidence. An IDR is.</p>
+  <p>Because each record is hash-chained to the last, you can replay the entire delegation history of a matter and prove that nothing was rewritten after the fact. The verifier is stdlib Python — no proprietary tooling, no vendor lock-in.</p>
+
+  <h2>What this page does</h2>
+  <p>This page is a stub explainer. It tells you the shape and the discipline. The full engine that creates, scores, and chains IDRs at production scale — with multi-model council, sensitivity routing, and falsification review — is the NEXUS tier.</p>
+
+  <div class="callout">
+    <h3>Try the full IDR engine.</h3>
+    <p>Voice-to-IDR, sensitivity-routed multi-model council, automatic falsification, matter-level chain replay. The free page proves the verb. NEXUS runs the loop.</p>
+    <a class="cta" href="https://chiefofstaff.pro" rel="noopener">See NEXUS on chiefofstaff.pro →</a>
+  </div>
+</main>
+</body>
+</html>

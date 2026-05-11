@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#0a0a0a">
+<title>Try DONNA — free.donnaoss.com</title>
+<meta name="description" content="Interactive demo of the DONNA chat surface, powered by an open language model on the free tier.">
+<link rel="canonical" href="https://free.donnaoss.com/try/">
+<meta property="og:title" content="Try DONNA — Decision-Oriented Network Notarisation for Attorneys">
+<meta property="og:description" content="Interactive demo, free tier, open language model. No keys required.">
+<meta property="og:image" content="https://free.donnaoss.com/og.png">
+<meta property="og:image:alt" content="DONNA — Decision-Oriented Network Notarisation for Attorneys. Open source. free.donnaoss.com">
+<style>
+:root {
+  --accent: #b35e15;
+  --accent-2: #7c3a08;
+  --ink: #111111;
+  --muted: #5b5550;
+  --rule: #d8d3cc;
+  --paper: #ffffff;
+  --paper-2: #f6f3ee;
+  --paper-3: #ece7df;
+  --cover-bg: #0a0a0a;
+  --cover-fg: #fafafa;
+  --gutter: clamp(1.25rem, 4vw, 2.5rem);
+  --serif: 'IBM Plex Serif', Georgia, serif;
+  --mono: 'IBM Plex Mono', 'SF Mono', Menlo, monospace;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { min-height: 100%; min-height: 100dvh; background: var(--paper-2); color: var(--ink); font-family: var(--serif); font-weight: 300; line-height: 1.6; -webkit-font-smoothing: antialiased; }
+a { color: var(--accent); text-decoration: none; }
+a:hover { color: var(--accent-2); }
+a:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+button { cursor: pointer; font: inherit; border: 0; }
+
+.shell { width: 100%; max-width: 880px; margin-inline: auto; padding-inline: var(--gutter); padding-block: clamp(2rem, 5vw, 3rem); }
+.topbar { display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap; margin-bottom: 1.5rem; }
+.brand { font-family: var(--mono); font-size: 0.85rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--accent); }
+.brand a { color: var(--accent); }
+.back { font-family: var(--mono); font-size: 0.8rem; color: var(--muted); }
+
+h1 { font-size: clamp(1.5rem, 3vw, 2.1rem); font-weight: 400; margin-bottom: 0.4rem; letter-spacing: -0.01em; }
+.sub { color: var(--muted); margin-bottom: 1.5rem; max-width: 56ch; }
+
+.transcript { background: var(--paper); border: 1px solid var(--rule); border-radius: 8px; padding: 1rem; min-height: 220px; max-height: 50vh; overflow-y: auto; margin-bottom: 1rem; }
+.msg { padding: 0.75rem 1rem; border-radius: 6px; margin-block: 0.5rem; max-width: 85%; line-height: 1.5; }
+.msg.user { background: var(--paper-3); margin-left: auto; }
+.msg.assistant { background: var(--paper-2); border: 1px solid var(--rule); }
+.msg .role { font-family: var(--mono); font-size: 0.7rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); display: block; margin-bottom: 0.3rem; }
+.msg pre { font-family: var(--mono); font-size: 0.85rem; white-space: pre-wrap; word-wrap: break-word; }
+.empty { color: var(--muted); font-style: italic; padding: 1rem; text-align: center; }
+
+form.composer { display: flex; gap: 0.5rem; margin-bottom: 1rem; }
+form.composer textarea { flex: 1; min-height: 48px; max-height: 200px; padding: 0.75rem 1rem; border: 1px solid var(--rule); border-radius: 6px; background: var(--paper); color: var(--ink); font-family: var(--serif); resize: vertical; }
+form.composer textarea:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+form.composer button { min-height: 48px; min-width: 96px; padding: 0 1.2rem; background: var(--accent); color: #fff; border-radius: 6px; font-family: var(--mono); font-size: 0.85rem; letter-spacing: 0.05em; text-transform: uppercase; }
+form.composer button[disabled] { background: var(--muted); cursor: wait; }
+
+.meta { font-family: var(--mono); font-size: 0.75rem; color: var(--muted); margin-top: 0.5rem; min-height: 1.2rem; }
+.meta strong { color: var(--accent); font-weight: 500; }
+
+.notice { background: var(--paper); border-left: 3px solid var(--accent); padding: 1rem 1.25rem; border-radius: 4px; margin-top: 1.5rem; font-size: 0.9rem; color: var(--muted); }
+.notice strong { color: var(--ink); font-weight: 500; }
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --ink: #f4eee5;
+    --muted: #b8b0a4;
+    --rule: #3a342c;
+    --paper: #15110d;
+    --paper-2: #1f1a14;
+    --paper-3: #2b251c;
+  }
+  body { background: var(--paper-2); color: var(--ink); }
+}
+</style>
+</head>
+<body>
+<main class="shell">
+  <div class="topbar">
+    <span class="brand"><a href="/">DONNA</a></span>
+    <a class="back" href="/">← Back to overview</a>
+  </div>
+
+  <h1>Try the chat surface.</h1>
+  <p class="sub">A live conversation with the DONNA chat surface, served by an open language model on the free tier. Latency, model name, and provider are reported on every turn.</p>
+
+  <div class="transcript" id="transcript" aria-live="polite">
+    <p class="empty" id="empty-state">Send a message below to begin. Try: <em>"Draft a one-line summary of an NDA between Acme Holdings and Foo Bar LLP."</em></p>
+  </div>
+
+  <form class="composer" id="composer">
+    <textarea name="message" id="message" placeholder="Ask DONNA something…" rows="2" required aria-label="Message"></textarea>
+    <button type="submit" id="send-btn">Send</button>
+  </form>
+
+  <p class="meta" id="meta" role="status"></p>
+
+  <div class="notice">
+    <strong>Free tier.</strong> Conversations are not stored, but the request hits a public model — do not paste privileged or client material. The full engine, with sensitivity routing and a multi-model council, lives on the NEXUS tier at <a href="https://chiefofstaff.pro" rel="noopener">chiefofstaff.pro</a>.
+  </div>
+</main>
+
+<script>
+(function () {
+  var transcript = document.getElementById("transcript");
+  var emptyState = document.getElementById("empty-state");
+  var form = document.getElementById("composer");
+  var input = document.getElementById("message");
+  var sendBtn = document.getElementById("send-btn");
+  var meta = document.getElementById("meta");
+
+  function appendMsg(role, text) {
+    if (emptyState && emptyState.parentNode) emptyState.parentNode.removeChild(emptyState);
+    var div = document.createElement("div");
+    div.className = "msg " + role;
+    var label = document.createElement("span");
+    label.className = "role";
+    label.textContent = role === "user" ? "You" : "DONNA";
+    var pre = document.createElement("pre");
+    pre.textContent = text;
+    div.appendChild(label);
+    div.appendChild(pre);
+    transcript.appendChild(div);
+    transcript.scrollTop = transcript.scrollHeight;
+    return pre;
+  }
+
+  function fmtCost(n) {
+    if (n === 0) return "free";
+    if (typeof n !== "number") return "—";
+    return "$" + n.toFixed(6);
+  }
+
+  form.addEventListener("submit", async function (e) {
+    e.preventDefault();
+    var msg = input.value.trim();
+    if (!msg) return;
+    appendMsg("user", msg);
+    input.value = "";
+    sendBtn.disabled = true;
+    meta.textContent = "Thinking…";
+    var assistantPre = appendMsg("assistant", "…");
+    try {
+      var r = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: msg })
+      });
+      var data = await r.json();
+      if (r.ok && data.text) {
+        assistantPre.textContent = data.text;
+        meta.innerHTML =
+          "<strong>" + (data.model || "?") + "</strong>" +
+          " · " + (data.provider || "?") +
+          " · " + (data.latency_ms || 0) + "ms" +
+          " · " + fmtCost(data.cost_usd);
+      } else {
+        assistantPre.textContent = (data && data.error) ? "[" + data.error + "]" : "[upstream error]";
+        meta.textContent = "Error " + r.status;
+      }
+    } catch (err) {
+      assistantPre.textContent = "[network error]";
+      meta.textContent = "Network error.";
+    } finally {
+      sendBtn.disabled = false;
+    }
+  });
+})();
+</script>
+</body>
+</html>

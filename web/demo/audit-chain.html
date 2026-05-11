@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#0a0a0a">
+<title>DONNA — Decision-Oriented Network Notarisation for Attorneys</title>
+<meta name="description" content="See what DONNA notarises. Every decision, hash-chained. Verify with one click. Open source demo on free.donnaoss.com.">
+<link rel="canonical" href="https://free.donnaoss.com/demo/audit-chain">
+<meta property="og:site_name" content="DONNA">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://free.donnaoss.com/demo/audit-chain">
+<meta property="og:title" content="DONNA — Decision-Oriented Network Notarisation for Attorneys">
+<meta property="og:description" content="See what DONNA notarises. Every decision, hash-chained. Verify with one click.">
+<meta property="og:image" content="https://free.donnaoss.com/og.png">
+<meta property="og:image:alt" content="DONNA — Decision-Oriented Network Notarisation for Attorneys. Open source. free.donnaoss.com">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="DONNA — Decision-Oriented Network Notarisation for Attorneys">
+<meta name="twitter:description" content="See what DONNA notarises. Every decision, hash-chained. Verify with one click.">
+<meta name="twitter:image" content="https://free.donnaoss.com/og.png">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect fill='%230a0a0a' width='100' height='100'/%3E%3Ccircle cx='50' cy='50' r='32' fill='none' stroke='%23b35e15' stroke-width='4'/%3E%3Cpath d='M30 50 L70 50' stroke='%23b35e15' stroke-width='4' stroke-linecap='round'/%3E%3C/svg%3E">
+<style>
+:root {
+  --accent: #b35e15;
+  --accent-2: #7c3a08;
+  --ink: #111111;
+  --ink-soft: #2a2a2a;
+  --muted: #5b5550;
+  --rule: #d8d3cc;
+  --paper: #ffffff;
+  --paper-2: #f6f3ee;
+  --paper-3: #ece7df;
+  --cover-bg: #0a0a0a;
+  --cover-fg: #fafafa;
+  --cover-muted: #b8b3ad;
+  --valid: #2d7a3a;
+  --invalid: #b53e15;
+  --gutter: clamp(1.25rem, 4vw, 2.5rem);
+  --serif: 'IBM Plex Serif', 'Source Serif Pro', Georgia, serif;
+  --mono: 'IBM Plex Mono', 'JetBrains Mono', 'SF Mono', Menlo, monospace;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { min-height: 100%; min-height: 100dvh; background: var(--paper-2); color: var(--ink); font-family: var(--serif); font-weight: 300; line-height: 1.6; -webkit-font-smoothing: antialiased; }
+a { color: var(--accent); text-decoration: none; }
+a:hover { color: var(--accent-2); }
+a:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+button { cursor: pointer; font: inherit; border: 0; }
+button:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+
+.shell { width: 100%; max-width: 1100px; margin-inline: auto; padding-inline: var(--gutter); padding-block: clamp(1.5rem, 4vw, 2.5rem); }
+
+.topnav { display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap; padding-block: 1rem; border-bottom: 1px solid var(--rule); }
+.topnav .brand { font-family: var(--mono); font-size: 0.85rem; letter-spacing: 0.18em; text-transform: uppercase; color: var(--accent); font-weight: 500; }
+.topnav .brand a { color: var(--accent); }
+.topnav nav { display: flex; gap: 1rem; flex-wrap: wrap; align-items: center; }
+.topnav nav a { font-family: var(--mono); font-size: 0.75rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
+.topnav nav a:hover, .topnav nav a[aria-current="page"] { color: var(--accent); }
+
+h1 { font-size: clamp(1.8rem, 4vw, 2.6rem); font-weight: 400; margin-block: 1.5rem 0.4rem; letter-spacing: -0.01em; }
+h2.subh1 { font-size: clamp(1.05rem, 2vw, 1.25rem); font-weight: 300; color: var(--muted); margin-bottom: 2rem; max-width: 56ch; }
+
+.banner { background: var(--paper); border-left: 3px solid var(--accent); padding: 1rem 1.25rem; border-radius: 4px; margin-bottom: 1.5rem; font-size: 0.9rem; color: var(--ink-soft); }
+.banner strong { color: var(--ink); font-weight: 500; }
+
+.split { display: grid; gap: 1.5rem; grid-template-columns: 1fr; }
+@media (min-width: 880px) { .split { grid-template-columns: 1fr 1fr; } }
+
+.pane { background: var(--paper); border: 1px solid var(--rule); border-radius: 8px; padding: clamp(1.25rem, 3vw, 1.75rem); }
+.pane h3 { font-size: 1rem; font-weight: 500; color: var(--accent-2); margin-bottom: 1rem; font-family: var(--mono); letter-spacing: 0.1em; text-transform: uppercase; }
+.pane label { display: block; font-family: var(--mono); font-size: 0.75rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); margin-bottom: 0.5rem; }
+.pane textarea { width: 100%; min-height: 120px; padding: 0.75rem 1rem; border: 1px solid var(--rule); border-radius: 6px; background: var(--paper-2); color: var(--ink); font-family: var(--serif); font-size: 1rem; resize: vertical; margin-bottom: 1rem; }
+.pane textarea:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+.notarise-btn { min-height: 48px; padding: 0.9rem 1.6rem; background: var(--accent); color: #fff; border-radius: 6px; font-family: var(--mono); font-size: 0.85rem; letter-spacing: 0.05em; text-transform: uppercase; transition: background 150ms ease; }
+.notarise-btn:hover { background: var(--accent-2); }
+.notarise-btn[disabled] { background: var(--muted); cursor: wait; }
+
+.notarised-result { margin-top: 1.25rem; padding: 1rem; background: var(--paper-2); border: 1px dashed var(--accent); border-radius: 6px; font-family: var(--mono); font-size: 0.82rem; color: var(--ink-soft); display: none; word-wrap: break-word; }
+.notarised-result.show { display: block; }
+.notarised-result .lbl { color: var(--muted); display: inline-block; min-width: 80px; }
+.notarised-result .val { color: var(--ink); }
+
+.chain-list { display: flex; flex-direction: column; gap: 0.75rem; max-height: 560px; overflow-y: auto; }
+.chain-entry { padding: 1rem; background: var(--paper-2); border: 1px solid var(--rule); border-radius: 6px; }
+.chain-entry .top { display: flex; justify-content: space-between; align-items: center; gap: 0.75rem; flex-wrap: wrap; margin-bottom: 0.5rem; }
+.chain-entry .hash { font-family: var(--mono); font-size: 0.78rem; color: var(--accent-2); }
+.chain-entry .badge { font-family: var(--mono); font-size: 0.7rem; letter-spacing: 0.1em; text-transform: uppercase; padding: 0.2rem 0.6rem; border-radius: 999px; }
+.chain-entry .badge[data-v="valid"] { background: rgba(45,122,58,0.12); color: var(--valid); border: 1px solid var(--valid); }
+.chain-entry .badge[data-v="invalid"] { background: rgba(181,62,21,0.12); color: var(--invalid); border: 1px solid var(--invalid); }
+.chain-entry .ts { font-family: var(--mono); font-size: 0.72rem; color: var(--muted); margin-bottom: 0.4rem; }
+.chain-entry .summary { font-size: 0.95rem; color: var(--ink); line-height: 1.5; }
+
+.demo-note { font-size: 0.85rem; color: var(--muted); font-style: italic; margin-top: 1rem; }
+
+.callout-nexus { background: var(--cover-bg); color: var(--cover-fg); border-radius: 8px; padding: clamp(1.5rem, 4vw, 2rem); margin-block: 2rem; }
+.callout-nexus h3 { font-size: 1.1rem; font-weight: 500; color: var(--cover-fg); margin-bottom: 0.75rem; }
+.callout-nexus p { color: var(--cover-muted); max-width: 64ch; margin-bottom: 1rem; line-height: 1.6; }
+.callout-nexus a.cta-link { font-family: var(--mono); color: var(--accent); border-bottom: 1px solid var(--accent); padding-bottom: 2px; font-size: 0.9rem; }
+
+footer { background: var(--paper-2); padding-block: 2rem; border-top: 1px solid var(--rule); font-size: 0.85rem; color: var(--muted); }
+footer .row { display: flex; flex-wrap: wrap; gap: 1rem; justify-content: space-between; align-items: center; }
+footer .badge { font-family: var(--mono); font-size: 0.7rem; letter-spacing: 0.15em; text-transform: uppercase; padding: 0.3rem 0.6rem; border: 1px solid var(--rule); border-radius: 999px; color: var(--muted); }
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --paper: #15110d;
+    --paper-2: #1f1a14;
+    --paper-3: #2b251c;
+    --ink: #f4eee5;
+    --ink-soft: #e0d8cc;
+    --muted: #b8b0a4;
+    --rule: #3a342c;
+    --valid: #6ed68a;
+  }
+  body { background: var(--paper-2); color: var(--ink); }
+  .pane textarea { background: var(--paper); color: var(--ink); }
+  .notarised-result { background: var(--paper-2); }
+  .chain-entry { background: var(--paper); }
+}
+</style>
+</head>
+<body>
+<header class="shell">
+  <div class="topnav">
+    <span class="brand"><a href="/">DONNA</a></span>
+    <nav aria-label="Primary">
+      <a href="/demo/voice-time-entry">Time</a>
+      <a href="/demo/voice-task-delegation">Tasks</a>
+      <a href="/demo/draft-nda">Draft</a>
+      <a href="/demo/audit-chain" aria-current="page">Audit</a>
+      <a href="/try/">Chat</a>
+    </nav>
+  </div>
+</header>
+
+<main class="shell">
+  <h1>Audit chain — see what DONNA notarises</h1>
+  <h2 class="subh1">Every decision, hash-chained. Verify with one click.</h2>
+
+  <div class="banner" id="demo-banner">
+    <strong>What you're seeing.</strong> Each entry below is a signed Intent Decision Record. The hash of each entry incorporates the previous entry's hash — tampering breaks the chain. The full engine — multi-model council, sensitivity routing — is the NEXUS tier.
+  </div>
+
+  <div class="split">
+    <section class="pane" aria-labelledby="notarise-h">
+      <h3 id="notarise-h">Notarise a decision</h3>
+      <form id="notarise-form">
+        <label for="decision-input">Describe the decision to notarise</label>
+        <textarea id="decision-input" name="decision-input" placeholder="Approved settlement offer of £75,000 for the Acme Holdings contract dispute, signed by counsel of record." required></textarea>
+        <button type="submit" class="notarise-btn" id="notarise-btn">Notarise</button>
+      </form>
+      <div class="notarised-result" id="notarised-result" role="status" aria-live="polite">
+        <div><span class="lbl">Hash:</span> <span class="val" id="r-hash">—</span></div>
+        <div><span class="lbl">Signature:</span> <span class="val" id="r-sig">—</span></div>
+        <div><span class="lbl">Index:</span> <span class="val" id="r-idx">—</span></div>
+      </div>
+    </section>
+
+    <section class="pane" aria-labelledby="verify-h">
+      <h3 id="verify-h">Verify the chain</h3>
+      <div class="chain-list" id="chain-list"></div>
+      <p class="demo-note" id="demo-note"></p>
+    </section>
+  </div>
+
+  <aside class="callout-nexus">
+    <h3>Want this wired into your matter management + billing?</h3>
+    <p>The audit chain you see is the AGPL primitive — verifiable in 60 seconds with stdlib tools. The full engine that produces enterprise-grade Intent Decision Records — with multi-model council, sensitivity routing, and falsification review — is the NEXUS tier.</p>
+    <a class="cta-link" href="https://chiefofstaff.pro" rel="noopener">Try the full DONNA on chiefofstaff.pro →</a>
+  </aside>
+</main>
+
+<footer>
+  <div class="shell row">
+    <div>DONNA is open source under AGPL-3.0. <a href="https://github.com/chiefofstaff-legal/donna" rel="noopener">View source on GitHub</a>.</div>
+    <span class="badge">AGPL-3.0</span>
+  </div>
+</footer>
+
+<script>
+(function () {
+  var form = document.getElementById("notarise-form");
+  var input = document.getElementById("decision-input");
+  var btn = document.getElementById("notarise-btn");
+  var result = document.getElementById("notarised-result");
+  var rHash = document.getElementById("r-hash");
+  var rSig = document.getElementById("r-sig");
+  var rIdx = document.getElementById("r-idx");
+  var chainList = document.getElementById("chain-list");
+  var demoNote = document.getElementById("demo-note");
+
+  var DEMO_CHAIN = [
+    {
+      hash: "a3f1b8e9c4d27a065f8e1c93b4d7a2e1",
+      timestamp: "2026-05-10T14:32:11Z",
+      title: "Engagement letter executed — Acme Holdings",
+      valid: true
+    },
+    {
+      hash: "6e2c91a4d8b35f17c9a4e0f2b6d7e8c5",
+      timestamp: "2026-05-10T16:18:47Z",
+      title: "Conflict check completed — clear to proceed",
+      valid: true
+    },
+    {
+      hash: "b91d4e7a2c8f5063e2b4a9c1d6f8e0a3",
+      timestamp: "2026-05-11T09:04:22Z",
+      title: "Settlement authority granted — £75,000 ceiling",
+      valid: true
+    }
+  ];
+
+  function truncHash(h) {
+    if (!h || h.length < 24) return h || "";
+    return h.slice(0, 16) + "…" + h.slice(-8);
+  }
+
+  function fmtTs(iso) {
+    try { return new Date(iso).toLocaleString(); }
+    catch (e) { return iso; }
+  }
+
+  function renderChain(entries, isDemo) {
+    chainList.innerHTML = "";
+    entries.forEach(function (entry) {
+      var div = document.createElement("div");
+      div.className = "chain-entry";
+      var top = document.createElement("div");
+      top.className = "top";
+      var hashEl = document.createElement("span");
+      hashEl.className = "hash";
+      hashEl.textContent = truncHash(entry.hash);
+      var badge = document.createElement("span");
+      badge.className = "badge";
+      badge.dataset.v = entry.valid ? "valid" : "invalid";
+      badge.textContent = entry.valid ? "Valid" : "Invalid";
+      top.appendChild(hashEl);
+      top.appendChild(badge);
+      var ts = document.createElement("div");
+      ts.className = "ts";
+      ts.textContent = fmtTs(entry.timestamp);
+      var summary = document.createElement("div");
+      summary.className = "summary";
+      summary.textContent = entry.title;
+      div.appendChild(top);
+      div.appendChild(ts);
+      div.appendChild(summary);
+      chainList.appendChild(div);
+    });
+    demoNote.textContent = isDemo
+      ? "Showing demo data — verification endpoint stubbed. Notarise a decision on the left to add to a live chain."
+      : "Live chain — " + entries.length + " entries.";
+  }
+
+  async function loadChain() {
+    try {
+      var r = await fetch("/api/verify");
+      if (r.status === 404 || r.status === 503) {
+        renderChain(DEMO_CHAIN, true);
+        return;
+      }
+      var data = await r.json();
+      if (r.ok && Array.isArray(data.entries) && data.entries.length) {
+        renderChain(data.entries, false);
+      } else {
+        renderChain(DEMO_CHAIN, true);
+      }
+    } catch (err) {
+      renderChain(DEMO_CHAIN, true);
+    }
+  }
+
+  form.addEventListener("submit", async function (e) {
+    e.preventDefault();
+    var text = input.value.trim();
+    if (!text) return;
+    btn.disabled = true;
+    btn.textContent = "Notarising…";
+    try {
+      var r = await fetch("/api/notarise", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ document_title: "Decision", document_text: text })
+      });
+      if (r.status === 404 || r.status === 503) {
+        rHash.textContent = "(stub) " + truncHash(genFakeHash(text));
+        rSig.textContent = "(stub — wired in next wave)";
+        rIdx.textContent = String(DEMO_CHAIN.length + 1);
+        result.classList.add("show");
+        return;
+      }
+      var data = await r.json();
+      if (r.ok && data.hash) {
+        rHash.textContent = truncHash(data.hash);
+        rSig.textContent = data.signature ? truncHash(data.signature) : "(none)";
+        rIdx.textContent = data.index !== undefined ? String(data.index) : "?";
+        result.classList.add("show");
+        loadChain();
+      } else {
+        rHash.textContent = "(stub) " + truncHash(genFakeHash(text));
+        rSig.textContent = "(stub)";
+        rIdx.textContent = String(DEMO_CHAIN.length + 1);
+        result.classList.add("show");
+      }
+    } catch (err) {
+      rHash.textContent = "(stub) " + truncHash(genFakeHash(text));
+      rSig.textContent = "(stub)";
+      rIdx.textContent = String(DEMO_CHAIN.length + 1);
+      result.classList.add("show");
+    } finally {
+      btn.disabled = false;
+      btn.textContent = "Notarise";
+    }
+  });
+
+  function genFakeHash(seed) {
+    var s = String(seed) + Date.now();
+    var h = 5381;
+    for (var i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) >>> 0;
+    var hex = h.toString(16);
+    while (hex.length < 32) hex = hex + Math.floor(Math.random() * 16).toString(16);
+    return hex.slice(0, 32);
+  }
+
+  loadChain();
+})();
+</script>
+</body>
+</html>

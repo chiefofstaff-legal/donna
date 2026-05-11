@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#0a0a0a">
+<title>DONNA — Decision-Oriented Network Notarisation for Attorneys</title>
+<meta name="description" content="Draft an NDA in five questions. One audited document. Open source demo on free.donnaoss.com.">
+<link rel="canonical" href="https://free.donnaoss.com/demo/draft-nda">
+<meta property="og:site_name" content="DONNA">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://free.donnaoss.com/demo/draft-nda">
+<meta property="og:title" content="DONNA — Decision-Oriented Network Notarisation for Attorneys">
+<meta property="og:description" content="Draft an NDA in five questions. One audited document.">
+<meta property="og:image" content="https://free.donnaoss.com/og.png">
+<meta property="og:image:alt" content="DONNA — Decision-Oriented Network Notarisation for Attorneys. Open source. free.donnaoss.com">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="DONNA — Decision-Oriented Network Notarisation for Attorneys">
+<meta name="twitter:description" content="Draft an NDA in five questions. One audited document.">
+<meta name="twitter:image" content="https://free.donnaoss.com/og.png">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect fill='%230a0a0a' width='100' height='100'/%3E%3Ccircle cx='50' cy='50' r='32' fill='none' stroke='%23b35e15' stroke-width='4'/%3E%3Cpath d='M30 50 L70 50' stroke='%23b35e15' stroke-width='4' stroke-linecap='round'/%3E%3C/svg%3E">
+<style>
+:root {
+  --accent: #b35e15;
+  --accent-2: #7c3a08;
+  --ink: #111111;
+  --ink-soft: #2a2a2a;
+  --muted: #5b5550;
+  --rule: #d8d3cc;
+  --paper: #ffffff;
+  --paper-2: #f6f3ee;
+  --paper-3: #ece7df;
+  --cover-bg: #0a0a0a;
+  --cover-fg: #fafafa;
+  --cover-muted: #b8b3ad;
+  --gutter: clamp(1.25rem, 4vw, 2.5rem);
+  --serif: 'IBM Plex Serif', 'Source Serif Pro', Georgia, serif;
+  --mono: 'IBM Plex Mono', 'JetBrains Mono', 'SF Mono', Menlo, monospace;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { min-height: 100%; min-height: 100dvh; background: var(--paper-2); color: var(--ink); font-family: var(--serif); font-weight: 300; line-height: 1.6; -webkit-font-smoothing: antialiased; }
+a { color: var(--accent); text-decoration: none; }
+a:hover { color: var(--accent-2); }
+a:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+button { cursor: pointer; font: inherit; border: 0; }
+button:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+
+.shell { width: 100%; max-width: 880px; margin-inline: auto; padding-inline: var(--gutter); padding-block: clamp(1.5rem, 4vw, 2.5rem); }
+
+.topnav { display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap; padding-block: 1rem; border-bottom: 1px solid var(--rule); }
+.topnav .brand { font-family: var(--mono); font-size: 0.85rem; letter-spacing: 0.18em; text-transform: uppercase; color: var(--accent); font-weight: 500; }
+.topnav .brand a { color: var(--accent); }
+.topnav nav { display: flex; gap: 1rem; flex-wrap: wrap; align-items: center; }
+.topnav nav a { font-family: var(--mono); font-size: 0.75rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
+.topnav nav a:hover, .topnav nav a[aria-current="page"] { color: var(--accent); }
+
+h1 { font-size: clamp(1.8rem, 4vw, 2.6rem); font-weight: 400; margin-block: 1.5rem 0.4rem; letter-spacing: -0.01em; }
+h2.subh1 { font-size: clamp(1.05rem, 2vw, 1.25rem); font-weight: 300; color: var(--muted); margin-bottom: 2rem; max-width: 56ch; }
+
+.banner { background: var(--paper); border-left: 3px solid var(--accent); padding: 1rem 1.25rem; border-radius: 4px; margin-bottom: 1.5rem; font-size: 0.92rem; color: var(--ink-soft); display: none; }
+.banner.show { display: block; }
+.banner strong { color: var(--ink); font-weight: 500; }
+
+.form-card { background: var(--paper); border: 1px solid var(--rule); border-radius: 8px; padding: clamp(1.5rem, 4vw, 2rem); margin-bottom: 1.5rem; }
+.form-card .field { margin-bottom: 1.25rem; }
+.form-card label { display: block; font-family: var(--mono); font-size: 0.75rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); margin-bottom: 0.5rem; }
+.form-card label .req { color: var(--accent); }
+.form-card input, .form-card select { width: 100%; min-height: 48px; padding: 0.75rem 1rem; border: 1px solid var(--rule); border-radius: 6px; background: var(--paper-2); color: var(--ink); font-family: var(--serif); font-size: 1rem; }
+.form-card input:focus, .form-card select:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+.form-card .row2 { display: grid; gap: 1rem; grid-template-columns: 1fr; }
+@media (min-width: 560px) { .form-card .row2 { grid-template-columns: 1fr 1fr; } }
+.submit-btn { min-height: 48px; padding: 0.9rem 1.6rem; background: var(--accent); color: #fff; border-radius: 6px; font-family: var(--mono); font-size: 0.85rem; letter-spacing: 0.05em; text-transform: uppercase; transition: background 150ms ease; }
+.submit-btn:hover { background: var(--accent-2); }
+.submit-btn[disabled] { background: var(--muted); cursor: wait; }
+
+.draft-card { background: var(--paper); border: 1px solid var(--rule); border-radius: 8px; padding: clamp(1.25rem, 3vw, 1.75rem); margin-bottom: 1.5rem; display: none; }
+.draft-card.show { display: block; }
+.draft-card h3 { font-size: 1rem; font-weight: 500; color: var(--accent-2); margin-bottom: 1rem; font-family: var(--mono); letter-spacing: 0.1em; text-transform: uppercase; }
+.draft-card .actions { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-block: 1rem; }
+.draft-card .action-btn { min-height: 44px; padding: 0.5rem 1rem; background: var(--paper-2); color: var(--ink); border: 1px solid var(--rule); border-radius: 6px; font-family: var(--mono); font-size: 0.75rem; letter-spacing: 0.1em; text-transform: uppercase; transition: background 150ms ease; }
+.draft-card .action-btn:hover { background: var(--paper-3); }
+.draft-card pre.draft-text { font-family: var(--mono); font-size: 0.85rem; line-height: 1.7; white-space: pre-wrap; word-wrap: break-word; padding: 1rem; background: var(--paper-2); border-radius: 4px; max-height: 480px; overflow-y: auto; color: var(--ink-soft); }
+.draft-card .alts { margin-top: 1.5rem; }
+.draft-card .alts h4 { font-size: 0.9rem; font-weight: 500; margin-bottom: 0.75rem; color: var(--ink); }
+.draft-card .alts ol { padding-left: 1.4rem; }
+.draft-card .alts ol li { margin-block: 0.5rem; color: var(--ink-soft); font-size: 0.95rem; line-height: 1.6; }
+
+.notarise-banner { background: var(--paper-2); border: 1px dashed var(--accent); padding: 1rem 1.25rem; border-radius: 6px; margin-top: 1rem; font-size: 0.9rem; color: var(--ink-soft); display: none; }
+.notarise-banner.show { display: block; }
+.notarise-banner a { color: var(--accent); border-bottom: 1px solid var(--accent); }
+
+.callout-nexus { background: var(--cover-bg); color: var(--cover-fg); border-radius: 8px; padding: clamp(1.5rem, 4vw, 2rem); margin-block: 2rem; }
+.callout-nexus h3 { font-size: 1.1rem; font-weight: 500; color: var(--cover-fg); margin-bottom: 0.75rem; }
+.callout-nexus p { color: var(--cover-muted); max-width: 64ch; margin-bottom: 1rem; line-height: 1.6; }
+.callout-nexus a.cta-link { font-family: var(--mono); color: var(--accent); border-bottom: 1px solid var(--accent); padding-bottom: 2px; font-size: 0.9rem; }
+
+footer { background: var(--paper-2); padding-block: 2rem; border-top: 1px solid var(--rule); font-size: 0.85rem; color: var(--muted); }
+footer .row { display: flex; flex-wrap: wrap; gap: 1rem; justify-content: space-between; align-items: center; }
+footer .badge { font-family: var(--mono); font-size: 0.7rem; letter-spacing: 0.15em; text-transform: uppercase; padding: 0.3rem 0.6rem; border: 1px solid var(--rule); border-radius: 999px; color: var(--muted); }
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --paper: #15110d;
+    --paper-2: #1f1a14;
+    --paper-3: #2b251c;
+    --ink: #f4eee5;
+    --ink-soft: #e0d8cc;
+    --muted: #b8b0a4;
+    --rule: #3a342c;
+  }
+  body { background: var(--paper-2); color: var(--ink); }
+  .form-card input, .form-card select { background: var(--paper); color: var(--ink); }
+  .draft-card pre.draft-text { background: var(--paper-2); color: var(--ink-soft); }
+}
+</style>
+</head>
+<body>
+<header class="shell">
+  <div class="topnav">
+    <span class="brand"><a href="/">DONNA</a></span>
+    <nav aria-label="Primary">
+      <a href="/demo/voice-time-entry">Time</a>
+      <a href="/demo/voice-task-delegation">Tasks</a>
+      <a href="/demo/draft-nda" aria-current="page">Draft</a>
+      <a href="/demo/audit-chain">Audit</a>
+      <a href="/try/">Chat</a>
+    </nav>
+  </div>
+</header>
+
+<main class="shell">
+  <h1>Draft an NDA</h1>
+  <h2 class="subh1">Five questions. One audited document.</h2>
+
+  <section class="form-card" aria-labelledby="form-h">
+    <h3 id="form-h" style="font-size:1.1rem;font-weight:500;margin-bottom:1.25rem;">Tell DONNA about the agreement</h3>
+    <form id="nda-form">
+      <div class="field">
+        <label for="disclosing">Disclosing party <span class="req">*</span></label>
+        <input type="text" id="disclosing" name="disclosing" placeholder="Acme Holdings (Delaware)" required autocomplete="off">
+      </div>
+      <div class="field">
+        <label for="receiving">Receiving party <span class="req">*</span></label>
+        <input type="text" id="receiving" name="receiving" placeholder="Foo Bar LLP (England & Wales)" required autocomplete="off">
+      </div>
+      <div class="field">
+        <label for="purpose">Purpose <span class="req">*</span></label>
+        <input type="text" id="purpose" name="purpose" placeholder="Evaluate a potential commercial partnership" required autocomplete="off">
+      </div>
+      <div class="row2">
+        <div class="field">
+          <label for="term">Term (months) <span class="req">*</span></label>
+          <input type="number" id="term" name="term" min="1" max="120" placeholder="24" required>
+        </div>
+        <div class="field">
+          <label for="jurisdiction">Jurisdiction <span class="req">*</span></label>
+          <input type="text" id="jurisdiction" name="jurisdiction" placeholder="England & Wales" required autocomplete="off">
+        </div>
+      </div>
+      <button type="submit" class="submit-btn" id="submit-btn">Draft NDA</button>
+    </form>
+  </section>
+
+  <section class="draft-card" id="draft-card" aria-live="polite">
+    <h3>Draft NDA</h3>
+    <div class="actions">
+      <button class="action-btn" id="download-btn" type="button">Download .txt</button>
+      <button class="action-btn" id="notarise-btn" type="button">Notarise this draft</button>
+    </div>
+    <pre class="draft-text" id="draft-text"></pre>
+    <div class="alts" id="alts-block" style="display:none;">
+      <h4>Alternative phrasings for the most-negotiated clause</h4>
+      <ol id="alts-list"></ol>
+    </div>
+    <div class="notarise-banner" id="notarise-banner">
+      <strong>Audit chain coming in next wave.</strong> Notarisation endpoint not wired yet — see <a href="/demo/audit-chain">/demo/audit-chain</a> for the chain visualisation.
+    </div>
+  </section>
+
+  <aside class="callout-nexus">
+    <h3>Want this wired into your matter management + billing?</h3>
+    <p>This page demonstrates single-template drafting on the open AGPL primitives. The full DONNA — seven templates, sensitivity routing, multi-model council, versioned matter summaries — lives on the NEXUS tier.</p>
+    <a class="cta-link" href="https://chiefofstaff.pro" rel="noopener">Try the full DONNA on chiefofstaff.pro →</a>
+  </aside>
+</main>
+
+<footer>
+  <div class="shell row">
+    <div>DONNA is open source under AGPL-3.0. <a href="https://github.com/chiefofstaff-legal/donna" rel="noopener">View source on GitHub</a>.</div>
+    <span class="badge">AGPL-3.0</span>
+  </div>
+</footer>
+
+<script>
+(function () {
+  var form = document.getElementById("nda-form");
+  var submitBtn = document.getElementById("submit-btn");
+  var draftCard = document.getElementById("draft-card");
+  var draftText = document.getElementById("draft-text");
+  var altsBlock = document.getElementById("alts-block");
+  var altsList = document.getElementById("alts-list");
+  var downloadBtn = document.getElementById("download-btn");
+  var notariseBtn = document.getElementById("notarise-btn");
+  var notariseBanner = document.getElementById("notarise-banner");
+
+  function buildPrompt(fields) {
+    return "You are DONNA, a legal drafting assistant. Draft a Non-Disclosure Agreement using these inputs:\n" +
+      "- Disclosing party: " + fields.disclosing + "\n" +
+      "- Receiving party: " + fields.receiving + "\n" +
+      "- Purpose: " + fields.purpose + "\n" +
+      "- Term: " + fields.term + " months\n" +
+      "- Jurisdiction: " + fields.jurisdiction + "\n\n" +
+      "Reply with two sections separated by '---ALTS---':\n" +
+      "Section 1: the full NDA in plain text, professional legal style, including standard clauses (definition of Confidential Information, obligations, exclusions, term, jurisdiction, signatures).\n" +
+      "Section 2: three alternative phrasings for the most-negotiated clause (typically Definition of Confidential Information or Permitted Disclosures), numbered 1-3.";
+  }
+
+  form.addEventListener("submit", async function (e) {
+    e.preventDefault();
+    var fields = {
+      disclosing: document.getElementById("disclosing").value.trim(),
+      receiving: document.getElementById("receiving").value.trim(),
+      purpose: document.getElementById("purpose").value.trim(),
+      term: document.getElementById("term").value.trim(),
+      jurisdiction: document.getElementById("jurisdiction").value.trim()
+    };
+    if (!fields.disclosing || !fields.receiving || !fields.purpose || !fields.term || !fields.jurisdiction) return;
+    submitBtn.disabled = true;
+    submitBtn.textContent = "Drafting…";
+    draftText.textContent = "Generating draft…";
+    altsBlock.style.display = "none";
+    notariseBanner.classList.remove("show");
+    draftCard.classList.add("show");
+    try {
+      var r = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: buildPrompt(fields) })
+      });
+      var data = await r.json();
+      var raw = data && data.text ? data.text : "[no response]";
+      var parts = raw.split(/---ALTS---/i);
+      draftText.textContent = (parts[0] || raw).trim();
+      if (parts[1]) {
+        altsList.innerHTML = "";
+        var alts = parts[1].split(/\n\s*\d+[\.\)]\s+/).map(function (s) { return s.trim(); }).filter(Boolean);
+        alts.forEach(function (a) {
+          var li = document.createElement("li");
+          li.textContent = a;
+          altsList.appendChild(li);
+        });
+        if (altsList.children.length) altsBlock.style.display = "block";
+      }
+    } catch (err) {
+      draftText.textContent = "[network error] — please retry.";
+    } finally {
+      submitBtn.disabled = false;
+      submitBtn.textContent = "Draft NDA";
+    }
+  });
+
+  downloadBtn.addEventListener("click", function () {
+    var text = draftText.textContent;
+    if (!text) return;
+    var blob = new Blob([text], { type: "text/plain" });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement("a");
+    a.href = url;
+    a.download = "nda-draft.txt";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  });
+
+  notariseBtn.addEventListener("click", async function () {
+    var text = draftText.textContent;
+    if (!text) return;
+    notariseBtn.disabled = true;
+    try {
+      var r = await fetch("/api/notarise", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ document_title: "NDA draft", document_text: text })
+      });
+      if (r.status === 404 || r.status === 503) {
+        notariseBanner.classList.add("show");
+        return;
+      }
+      var data = await r.json();
+      if (r.ok) {
+        notariseBanner.innerHTML = "<strong>Notarised.</strong> Hash: <code>" + (data.hash || "?").slice(0, 16) + "…</code> — see <a href='/demo/audit-chain'>the chain</a>.";
+        notariseBanner.classList.add("show");
+      } else {
+        notariseBanner.classList.add("show");
+      }
+    } catch (err) {
+      notariseBanner.classList.add("show");
+    } finally {
+      notariseBtn.disabled = false;
+    }
+  });
+})();
+</script>
+</body>
+</html>

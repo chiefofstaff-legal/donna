@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#0a0a0a">
+<title>DONNA — Decision-Oriented Network Notarisation for Attorneys</title>
+<meta name="description" content="Voice-first task delegation. Speak the task. DONNA writes it down. Open source demo on free.donnaoss.com.">
+<link rel="canonical" href="https://free.donnaoss.com/demo/voice-task-delegation">
+<meta property="og:site_name" content="DONNA">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://free.donnaoss.com/demo/voice-task-delegation">
+<meta property="og:title" content="DONNA — Decision-Oriented Network Notarisation for Attorneys">
+<meta property="og:description" content="Voice-first task delegation. Speak the task. DONNA writes it down.">
+<meta property="og:image" content="https://free.donnaoss.com/og.png">
+<meta property="og:image:alt" content="DONNA — Decision-Oriented Network Notarisation for Attorneys. Open source. free.donnaoss.com">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="DONNA — Decision-Oriented Network Notarisation for Attorneys">
+<meta name="twitter:description" content="Voice-first task delegation. Speak the task. DONNA writes it down.">
+<meta name="twitter:image" content="https://free.donnaoss.com/og.png">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect fill='%230a0a0a' width='100' height='100'/%3E%3Ccircle cx='50' cy='50' r='32' fill='none' stroke='%23b35e15' stroke-width='4'/%3E%3Cpath d='M30 50 L70 50' stroke='%23b35e15' stroke-width='4' stroke-linecap='round'/%3E%3C/svg%3E">
+<style>
+:root {
+  --accent: #b35e15;
+  --accent-2: #7c3a08;
+  --ink: #111111;
+  --ink-soft: #2a2a2a;
+  --muted: #5b5550;
+  --rule: #d8d3cc;
+  --paper: #ffffff;
+  --paper-2: #f6f3ee;
+  --paper-3: #ece7df;
+  --cover-bg: #0a0a0a;
+  --cover-fg: #fafafa;
+  --cover-muted: #b8b3ad;
+  --recording: #b53e15;
+  --gutter: clamp(1.25rem, 4vw, 2.5rem);
+  --serif: 'IBM Plex Serif', 'Source Serif Pro', Georgia, serif;
+  --mono: 'IBM Plex Mono', 'JetBrains Mono', 'SF Mono', Menlo, monospace;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { min-height: 100%; min-height: 100dvh; background: var(--paper-2); color: var(--ink); font-family: var(--serif); font-weight: 300; line-height: 1.6; -webkit-font-smoothing: antialiased; }
+a { color: var(--accent); text-decoration: none; }
+a:hover { color: var(--accent-2); }
+a:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+button { cursor: pointer; font: inherit; border: 0; }
+button:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+
+.shell { width: 100%; max-width: 880px; margin-inline: auto; padding-inline: var(--gutter); padding-block: clamp(1.5rem, 4vw, 2.5rem); }
+
+.topnav { display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap; padding-block: 1rem; border-bottom: 1px solid var(--rule); }
+.topnav .brand { font-family: var(--mono); font-size: 0.85rem; letter-spacing: 0.18em; text-transform: uppercase; color: var(--accent); font-weight: 500; }
+.topnav .brand a { color: var(--accent); }
+.topnav nav { display: flex; gap: 1rem; flex-wrap: wrap; align-items: center; }
+.topnav nav a { font-family: var(--mono); font-size: 0.75rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
+.topnav nav a:hover, .topnav nav a[aria-current="page"] { color: var(--accent); }
+
+h1 { font-size: clamp(1.8rem, 4vw, 2.6rem); font-weight: 400; margin-block: 1.5rem 0.4rem; letter-spacing: -0.01em; }
+h2.subh1 { font-size: clamp(1.05rem, 2vw, 1.25rem); font-weight: 300; color: var(--muted); margin-bottom: 2rem; max-width: 56ch; }
+
+.banner { background: var(--paper); border-left: 3px solid var(--accent); padding: 1rem 1.25rem; border-radius: 4px; margin-bottom: 1.5rem; font-size: 0.92rem; color: var(--ink-soft); display: none; }
+.banner.show { display: block; }
+.banner strong { color: var(--ink); font-weight: 500; }
+
+.voice-panel { background: var(--paper); border: 1px solid var(--rule); border-radius: 8px; padding: clamp(1.5rem, 4vw, 2.5rem); margin-bottom: 1.5rem; text-align: center; }
+.voice-panel h3 { font-size: 1.1rem; font-weight: 500; margin-bottom: 1.5rem; color: var(--ink); }
+
+.mic-btn { width: 120px; height: 120px; min-width: 48px; min-height: 48px; border-radius: 50%; background: var(--accent); color: #fff; display: inline-flex; align-items: center; justify-content: center; font-family: var(--mono); font-size: 0.75rem; letter-spacing: 0.1em; text-transform: uppercase; transition: background 200ms ease, transform 200ms ease, box-shadow 200ms ease; box-shadow: 0 4px 16px rgba(179,94,21,0.25); }
+.mic-btn:hover { background: var(--accent-2); transform: scale(1.03); }
+.mic-btn:active { transform: scale(0.97); }
+.mic-btn.recording { background: var(--recording); animation: pulse 1.4s ease-in-out infinite; }
+.mic-btn.transcribing { background: var(--muted); }
+.mic-btn[disabled] { background: var(--muted); cursor: not-allowed; transform: none; }
+.mic-btn svg { width: 48px; height: 48px; fill: currentColor; }
+
+@keyframes pulse {
+  0%, 100% { box-shadow: 0 4px 16px rgba(181,62,21,0.4); }
+  50% { box-shadow: 0 4px 32px rgba(181,62,21,0.8); }
+}
+
+.mic-state { font-family: var(--mono); font-size: 0.85rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); margin-top: 1rem; min-height: 1.4rem; }
+.mic-state[data-state="recording"] { color: var(--recording); }
+.mic-state[data-state="transcribing"] { color: var(--accent-2); }
+.mic-state[data-state="done"] { color: var(--accent-2); }
+.mic-state[data-state="error"] { color: var(--recording); }
+
+.divider { display: flex; align-items: center; gap: 1rem; margin-block: 2rem; color: var(--muted); font-family: var(--mono); font-size: 0.75rem; letter-spacing: 0.15em; text-transform: uppercase; }
+.divider::before, .divider::after { content: ""; flex: 1; height: 1px; background: var(--rule); }
+
+.text-mode { background: var(--paper); border: 1px solid var(--rule); border-radius: 8px; padding: clamp(1.5rem, 4vw, 2rem); margin-bottom: 1.5rem; }
+.text-mode h3 { font-size: 1.1rem; font-weight: 500; margin-bottom: 1rem; }
+.text-mode label { display: block; font-family: var(--mono); font-size: 0.75rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); margin-bottom: 0.5rem; }
+.text-mode textarea { width: 100%; min-height: 96px; padding: 0.75rem 1rem; border: 1px solid var(--rule); border-radius: 6px; background: var(--paper-2); color: var(--ink); font-family: var(--serif); font-size: 1rem; resize: vertical; }
+.text-mode textarea:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+.text-mode .hint { font-size: 0.85rem; color: var(--muted); margin-block: 0.5rem 1rem; font-style: italic; }
+.text-mode .submit-btn { min-height: 48px; padding: 0.9rem 1.6rem; background: var(--accent); color: #fff; border-radius: 6px; font-family: var(--mono); font-size: 0.85rem; letter-spacing: 0.05em; text-transform: uppercase; transition: background 150ms ease; }
+.text-mode .submit-btn:hover { background: var(--accent-2); }
+.text-mode .submit-btn[disabled] { background: var(--muted); cursor: wait; }
+
+.output-card { background: var(--paper); border: 1px solid var(--rule); border-radius: 8px; padding: clamp(1.25rem, 3vw, 1.75rem); margin-bottom: 1.5rem; display: none; }
+.output-card.show { display: block; }
+.output-card h3 { font-size: 1rem; font-weight: 500; color: var(--accent-2); margin-bottom: 1rem; font-family: var(--mono); letter-spacing: 0.1em; text-transform: uppercase; }
+.output-card .field { display: grid; grid-template-columns: 1fr; gap: 0.25rem; padding-block: 0.75rem; border-bottom: 1px solid var(--rule); }
+.output-card .field:last-child { border-bottom: 0; }
+@media (min-width: 560px) { .output-card .field { grid-template-columns: 140px 1fr; gap: 1rem; align-items: baseline; } }
+.output-card .field .key { font-family: var(--mono); font-size: 0.75rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
+.output-card .field .val { color: var(--ink); }
+.output-card .priority-pill { display: inline-block; padding: 0.2rem 0.6rem; border-radius: 999px; font-family: var(--mono); font-size: 0.7rem; letter-spacing: 0.1em; text-transform: uppercase; background: var(--paper-2); color: var(--muted); border: 1px solid var(--rule); }
+.output-card .priority-pill[data-p="high"] { background: rgba(181,62,21,0.12); color: var(--recording); border-color: var(--recording); }
+.output-card .priority-pill[data-p="medium"] { background: rgba(179,94,21,0.12); color: var(--accent-2); border-color: var(--accent); }
+.output-card .raw { margin-top: 1rem; padding: 0.75rem; background: var(--paper-2); border-radius: 4px; font-family: var(--mono); font-size: 0.8rem; white-space: pre-wrap; word-wrap: break-word; color: var(--ink-soft); max-height: 200px; overflow-y: auto; }
+
+.callout-nexus { background: var(--cover-bg); color: var(--cover-fg); border-radius: 8px; padding: clamp(1.5rem, 4vw, 2rem); margin-block: 2rem; }
+.callout-nexus h3 { font-size: 1.1rem; font-weight: 500; color: var(--cover-fg); margin-bottom: 0.75rem; }
+.callout-nexus p { color: var(--cover-muted); max-width: 64ch; margin-bottom: 1rem; line-height: 1.6; }
+.callout-nexus a.cta-link { font-family: var(--mono); color: var(--accent); border-bottom: 1px solid var(--accent); padding-bottom: 2px; font-size: 0.9rem; }
+
+footer { background: var(--paper-2); padding-block: 2rem; border-top: 1px solid var(--rule); font-size: 0.85rem; color: var(--muted); }
+footer .row { display: flex; flex-wrap: wrap; gap: 1rem; justify-content: space-between; align-items: center; }
+footer .badge { font-family: var(--mono); font-size: 0.7rem; letter-spacing: 0.15em; text-transform: uppercase; padding: 0.3rem 0.6rem; border: 1px solid var(--rule); border-radius: 999px; color: var(--muted); }
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --paper: #15110d;
+    --paper-2: #1f1a14;
+    --paper-3: #2b251c;
+    --ink: #f4eee5;
+    --ink-soft: #e0d8cc;
+    --muted: #b8b0a4;
+    --rule: #3a342c;
+  }
+  body { background: var(--paper-2); color: var(--ink); }
+  .text-mode textarea { background: var(--paper); color: var(--ink); }
+  .output-card .raw { background: var(--paper-2); color: var(--ink-soft); }
+}
+</style>
+</head>
+<body>
+<header class="shell">
+  <div class="topnav">
+    <span class="brand"><a href="/">DONNA</a></span>
+    <nav aria-label="Primary">
+      <a href="/demo/voice-time-entry">Time</a>
+      <a href="/demo/voice-task-delegation" aria-current="page">Tasks</a>
+      <a href="/demo/draft-nda">Draft</a>
+      <a href="/demo/audit-chain">Audit</a>
+      <a href="/try/">Chat</a>
+    </nav>
+  </div>
+</header>
+
+<main class="shell">
+  <h1>Voice task delegation</h1>
+  <h2 class="subh1">Speak the task. DONNA writes it down.</h2>
+
+  <div class="banner" id="degraded-banner" role="status" aria-live="polite">
+    <strong>Voice transcription is wired up</strong> — full Whisper integration ships in the next wave. Use text mode below to try the parsing.
+  </div>
+
+  <section class="voice-panel" aria-labelledby="voice-mode-h">
+    <h3 id="voice-mode-h">Voice mode</h3>
+    <button id="mic-btn" class="mic-btn" type="button" aria-label="Start recording your task" aria-pressed="false">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 14a3 3 0 0 0 3-3V5a3 3 0 1 0-6 0v6a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-3.08A7 7 0 0 0 19 11h-2z"/></svg>
+    </button>
+    <p class="mic-state" id="mic-state" data-state="idle">Tap to record</p>
+  </section>
+
+  <div class="divider">or use text mode</div>
+
+  <section class="text-mode" aria-labelledby="text-mode-h">
+    <h3 id="text-mode-h">Text mode</h3>
+    <form id="text-form">
+      <label for="text-input">Describe the task to delegate</label>
+      <textarea id="text-input" name="text-input" placeholder="Ask Foo Bar LLP to review clause 7 of the partnership agreement by Friday — high priority" required></textarea>
+      <p class="hint">DONNA will parse this into assignee, deadline, task, and priority.</p>
+      <button type="submit" class="submit-btn" id="submit-btn">Parse task</button>
+    </form>
+  </section>
+
+  <section class="output-card" id="output-card" aria-live="polite">
+    <h3>Parsed task</h3>
+    <div class="field"><span class="key">Assignee</span><span class="val" id="out-assignee">—</span></div>
+    <div class="field"><span class="key">Deadline</span><span class="val" id="out-deadline">—</span></div>
+    <div class="field"><span class="key">Task</span><span class="val" id="out-task">—</span></div>
+    <div class="field"><span class="key">Priority</span><span class="val"><span class="priority-pill" id="out-priority">—</span></span></div>
+    <details>
+      <summary style="margin-top:1rem;font-family:var(--mono);font-size:0.75rem;letter-spacing:0.1em;text-transform:uppercase;color:var(--muted);cursor:pointer;">Raw model output</summary>
+      <pre class="raw" id="out-raw"></pre>
+    </details>
+  </section>
+
+  <aside class="callout-nexus">
+    <h3>Want this wired into your matter management + billing?</h3>
+    <p>This page demonstrates voice-first task delegation on the open AGPL primitives. The full DONNA — assignee directory, deadline enforcement, multi-model council, sensitivity routing — lives on the NEXUS tier.</p>
+    <a class="cta-link" href="https://chiefofstaff.pro" rel="noopener">Try the full DONNA on chiefofstaff.pro →</a>
+  </aside>
+</main>
+
+<footer>
+  <div class="shell row">
+    <div>DONNA is open source under AGPL-3.0. <a href="https://github.com/chiefofstaff-legal/donna" rel="noopener">View source on GitHub</a>.</div>
+    <span class="badge">AGPL-3.0</span>
+  </div>
+</footer>
+
+<script>
+(function () {
+  var micBtn = document.getElementById("mic-btn");
+  var micState = document.getElementById("mic-state");
+  var banner = document.getElementById("degraded-banner");
+  var form = document.getElementById("text-form");
+  var input = document.getElementById("text-input");
+  var submitBtn = document.getElementById("submit-btn");
+  var output = document.getElementById("output-card");
+  var outAssignee = document.getElementById("out-assignee");
+  var outDeadline = document.getElementById("out-deadline");
+  var outTask = document.getElementById("out-task");
+  var outPriority = document.getElementById("out-priority");
+  var outRaw = document.getElementById("out-raw");
+
+  var mediaRecorder = null;
+  var chunks = [];
+  var state = "idle";
+
+  function setState(next, label) {
+    state = next;
+    micState.dataset.state = next;
+    micState.textContent = label;
+    micBtn.setAttribute("aria-pressed", next === "recording" ? "true" : "false");
+    micBtn.classList.toggle("recording", next === "recording");
+    micBtn.classList.toggle("transcribing", next === "transcribing");
+    micBtn.disabled = next === "transcribing";
+  }
+
+  function showBanner() { banner.classList.add("show"); }
+
+  async function startRecording() {
+    try {
+      var stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      mediaRecorder = new MediaRecorder(stream);
+      chunks = [];
+      mediaRecorder.ondataavailable = function (e) { if (e.data.size > 0) chunks.push(e.data); };
+      mediaRecorder.onstop = function () { stream.getTracks().forEach(function (t) { t.stop(); }); transcribe(); };
+      mediaRecorder.start();
+      setState("recording", "Recording — tap to stop");
+    } catch (err) {
+      setState("error", "Microphone blocked or unavailable");
+      showBanner();
+    }
+  }
+
+  function stopRecording() {
+    if (mediaRecorder && mediaRecorder.state === "recording") mediaRecorder.stop();
+  }
+
+  async function transcribe() {
+    setState("transcribing", "Transcribing…");
+    var blob = new Blob(chunks, { type: "audio/webm" });
+    var fd = new FormData();
+    fd.append("audio", blob, "task.webm");
+    try {
+      var r = await fetch("/api/voice", { method: "POST", body: fd });
+      if (r.status === 404 || r.status === 503) {
+        showBanner();
+        setState("idle", "Tap to record");
+        return;
+      }
+      var data = await r.json();
+      if (r.ok && data.text) {
+        input.value = data.text;
+        setState("done", "Got it — review and parse below");
+        form.requestSubmit();
+      } else {
+        setState("error", "Transcription failed");
+        showBanner();
+      }
+    } catch (err) {
+      showBanner();
+      setState("idle", "Tap to record");
+    }
+  }
+
+  micBtn.addEventListener("click", function () {
+    if (state === "idle" || state === "done" || state === "error") startRecording();
+    else if (state === "recording") stopRecording();
+  });
+
+  form.addEventListener("submit", async function (e) {
+    e.preventDefault();
+    var text = input.value.trim();
+    if (!text) return;
+    submitBtn.disabled = true;
+    submitBtn.textContent = "Parsing…";
+    var prompt = "You are DONNA, a legal task-delegation parser. Parse this free-text delegation request into strict JSON with keys 'assignee' (string), 'deadline' (ISO date string or natural-language date), 'task' (string), 'priority' (one of: low, medium, high). Reply ONLY with the JSON object, no prose. Request: " + text;
+    try {
+      var r = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: prompt })
+      });
+      var data = await r.json();
+      var raw = data && data.text ? data.text : "[no response]";
+      outRaw.textContent = raw;
+      var parsed = null;
+      try {
+        var match = raw.match(/\{[\s\S]*\}/);
+        if (match) parsed = JSON.parse(match[0]);
+      } catch (parseErr) { parsed = null; }
+      if (parsed) {
+        outAssignee.textContent = parsed.assignee || "—";
+        outDeadline.textContent = parsed.deadline || "—";
+        outTask.textContent = parsed.task || "—";
+        var p = (parsed.priority || "").toLowerCase();
+        outPriority.textContent = parsed.priority || "—";
+        outPriority.dataset.p = (p === "high" || p === "medium") ? p : "";
+      } else {
+        outAssignee.textContent = "(could not parse)";
+        outDeadline.textContent = "—";
+        outTask.textContent = "See raw output below.";
+        outPriority.textContent = "—";
+      }
+      output.classList.add("show");
+    } catch (err) {
+      outRaw.textContent = "[network error]";
+      output.classList.add("show");
+    } finally {
+      submitBtn.disabled = false;
+      submitBtn.textContent = "Parse task";
+    }
+  });
+})();
+</script>
+</body>
+</html>

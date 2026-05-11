@@ -68,19 +68,36 @@ Inverted Red Hat: open surface, proprietary substrate. The lawyer can host the s
 
 Three paths, depending on how deep you want to go. Each path builds on the one before it.
 
-### 1. The 60-second peek — does the audit chain actually verify?
+### 1. The 60-second demo — watch the whole pipeline in one command
 
-You don't need to install anything to see the substance. Clone the repo, run one command, watch DONNA prove its own audit chain. If this fails, nothing else matters.
+You don't need to install anything to see the substance. Clone the repo, run one command, watch a full DONNA workflow end-to-end: three lawyer utterances → intent extraction → signed IDRs → audit-chain verification → replay.
 
 ```bash
 git clone https://github.com/chiefofstaff-legal/donna.git
 cd donna
-export DONNA_NOTARISE_KEY=donna-public-demo-key-2026-05-08
-python3 bin/notarise verify --chain PROBAT.md
-# expected output: OK: 3 record(s) verified (HMAC-SHA256)
+make demo
+# (or: python3 demo/demo.py)
 ```
 
-That is the entire substrate working end-to-end — three signed decisions, chained, verifiable, with about 200 lines of stdlib Python.
+The whole pipeline runs in well under a second, with **zero dependencies** (stdlib Python only). You'll see three real lawyer-flavoured utterances pass through:
+
+```
+Lawyer says: "Just spent 90 minutes on the Smith motion drafting the indemnity clauses."
+  → intent: {category: time_entry, duration_hours: 1.5, matter: Smith}
+  → IDR signed: idr_...  sig: 3516328196275e94…
+```
+
+…three of those, chained, then verified (`OK: 3 record(s) verified (HMAC-SHA256)`), then replayed in plain English — *exactly what a regulator reads in an audit*.
+
+If you want to spot-check just the static audit chain that ships with the repo:
+
+```bash
+export DONNA_NOTARISE_KEY=donna-public-demo-key-2026-05-08
+python3 bin/notarise verify --chain PROBAT.md
+# expected: OK: 3 record(s) verified (HMAC-SHA256)
+```
+
+That's the entire substrate — about 200 lines of stdlib Python, no dependencies, no servers, no LLM keys required.
 
 ### 2. The 5-minute MCP server — talk to DONNA from your AI client
 

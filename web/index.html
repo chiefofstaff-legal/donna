@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#0a0a0a">
+<title>DONNA — Decision-Oriented Network Notarisation for Attorneys</title>
+<meta name="description" content="The open source Delegation Orchestration Layer for attorneys. Speak what needs doing — DONNA captures the request, routes it to the right person or AI, confirms it's done, and saves a signed proof your firm can verify.">
+<link rel="canonical" href="https://free.donnaoss.com/">
+<meta property="og:site_name" content="DONNA">
+<meta property="og:locale" content="en_GB">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://free.donnaoss.com/">
+<meta property="og:title" content="DONNA — Decision-Oriented Network Notarisation for Attorneys">
+<meta property="og:description" content="Open source. Speak what needs doing. DONNA routes the work, confirms it's done, and saves a signed proof your firm can verify.">
+<meta property="og:image" content="https://free.donnaoss.com/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="DONNA — Decision-Oriented Network Notarisation for Attorneys. Open source. free.donnaoss.com">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="DONNA — Decision-Oriented Network Notarisation for Attorneys">
+<meta name="twitter:description" content="Open source. Speak what needs doing. DONNA routes the work, confirms it's done, and saves a signed proof your firm can verify.">
+<meta name="twitter:image" content="https://free.donnaoss.com/og.png">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect fill='%230a0a0a' width='100' height='100'/%3E%3Ccircle cx='50' cy='50' r='32' fill='none' stroke='%23b35e15' stroke-width='4'/%3E%3Cpath d='M30 50 L70 50' stroke='%23b35e15' stroke-width='4' stroke-linecap='round'/%3E%3C/svg%3E">
+<style>
+:root {
+  --accent: #b35e15;
+  --accent-2: #7c3a08;
+  --ink: #111111;
+  --ink-soft: #2a2a2a;
+  --muted: #5b5550;
+  --rule: #d8d3cc;
+  --paper: #ffffff;
+  --paper-2: #f6f3ee;
+  --cover-bg: #0a0a0a;
+  --cover-fg: #fafafa;
+  --cover-muted: #b8b3ad;
+  --gutter: clamp(1.25rem, 4vw, 2.5rem);
+  --rhythm: clamp(3rem, 8vw, 6rem);
+  --serif: 'IBM Plex Serif', 'Source Serif Pro', Georgia, serif;
+  --mono: 'IBM Plex Mono', 'JetBrains Mono', 'SF Mono', Menlo, monospace;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; -webkit-text-size-adjust: 100%; }
+body {
+  background: var(--paper-2);
+  color: var(--ink);
+  font-family: var(--serif);
+  font-weight: 300;
+  font-size: clamp(16px, 0.4vw + 0.85rem, 18px);
+  line-height: 1.7;
+  -webkit-font-smoothing: antialiased;
+}
+a { color: var(--accent); text-decoration: none; }
+a:hover { color: var(--accent-2); }
+a:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+button { cursor: pointer; font: inherit; border: 0; }
+.shell { width: 100%; max-width: 1100px; margin-inline: auto; padding-inline: var(--gutter); }
+section { padding-block: var(--rhythm); }
+
+.hero { background: var(--cover-bg); color: var(--cover-fg); padding-block: clamp(4rem, 10vw, 7rem); }
+.hero h1 { font-size: clamp(2.2rem, 5vw, 3.6rem); font-weight: 300; letter-spacing: -0.02em; line-height: 1.1; margin-bottom: 1rem; }
+.hero h1 strong { color: var(--accent); font-weight: 500; }
+.hero .lede { font-size: clamp(1.05rem, 1.6vw, 1.25rem); color: var(--cover-muted); max-width: 56ch; margin-bottom: 2rem; }
+.hero .free-badge { display: inline-block; font-family: var(--mono); font-size: 0.75rem; letter-spacing: 0.18em; text-transform: uppercase; color: var(--accent); border: 1px solid var(--accent); padding: 0.4rem 0.8rem; border-radius: 999px; margin-bottom: 1.5rem; }
+
+.cta-row { display: flex; flex-wrap: wrap; gap: 0.75rem; margin-top: 1.5rem; }
+.btn { display: inline-flex; align-items: center; justify-content: center; min-height: 48px; padding: 0.9rem 1.6rem; border-radius: 6px; font-family: var(--mono); font-size: 0.9rem; letter-spacing: 0.04em; text-transform: uppercase; transition: transform 150ms ease, background 150ms ease; }
+.btn-primary { background: var(--accent); color: #fff; }
+.btn-primary:hover { background: var(--accent-2); color: #fff; transform: translateY(-1px); }
+.btn-ghost { background: transparent; color: var(--cover-fg); border: 1px solid var(--cover-muted); }
+.btn-ghost:hover { background: rgba(255,255,255,0.05); color: var(--cover-fg); }
+
+.backronym { background: var(--paper); border-block: 1px solid var(--rule); }
+.backronym h2 { font-size: clamp(1.4rem, 2.5vw, 1.9rem); font-weight: 400; margin-bottom: 2rem; letter-spacing: -0.01em; }
+.backronym .grid { display: grid; gap: 1.5rem; grid-template-columns: 1fr; }
+@media (min-width: 720px) { .backronym .grid { grid-template-columns: repeat(5, 1fr); } }
+.backronym .letter { padding: 1.25rem; border: 1px solid var(--rule); border-radius: 8px; background: var(--paper-2); }
+.backronym .letter .glyph { font-family: var(--mono); font-size: 2rem; font-weight: 500; color: var(--accent); display: block; margin-bottom: 0.5rem; }
+.backronym .letter .word { display: block; font-weight: 500; margin-bottom: 0.4rem; color: var(--ink); }
+.backronym .letter p { font-size: 0.95rem; color: var(--muted); line-height: 1.5; }
+
+.overview { background: var(--paper-2); }
+.overview h2 { font-size: clamp(1.4rem, 2.5vw, 1.9rem); font-weight: 400; margin-bottom: 1.5rem; letter-spacing: -0.01em; }
+.overview ol { padding-left: 1.4rem; margin-block: 1rem; }
+.overview ol li { margin-block: 0.6rem; max-width: 64ch; }
+.overview .timer { font-family: var(--mono); font-size: 0.85rem; color: var(--accent); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 1rem; }
+
+.signup { background: var(--paper); border-top: 1px solid var(--rule); }
+.signup h2 { font-size: clamp(1.4rem, 2.5vw, 1.9rem); font-weight: 400; margin-bottom: 0.6rem; }
+.signup p { color: var(--muted); margin-bottom: 1.5rem; max-width: 56ch; }
+.signup form { display: flex; flex-wrap: wrap; gap: 0.75rem; max-width: 480px; }
+.signup input[type="email"] { flex: 1 1 240px; min-height: 48px; padding: 0.75rem 1rem; border: 1px solid var(--rule); border-radius: 6px; background: var(--paper-2); color: var(--ink); }
+.signup input[type="email"]:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+.signup .status { margin-top: 1rem; font-family: var(--mono); font-size: 0.85rem; min-height: 1.4rem; color: var(--muted); }
+.signup .status[data-tone="ok"] { color: var(--accent-2); }
+.signup .status[data-tone="err"] { color: #b53e15; }
+
+.callout-nexus { background: var(--cover-bg); color: var(--cover-fg); }
+.callout-nexus h2 { font-size: clamp(1.4rem, 2.5vw, 1.9rem); font-weight: 400; color: var(--cover-fg); margin-bottom: 1rem; }
+.callout-nexus p { color: var(--cover-muted); max-width: 64ch; margin-bottom: 1.5rem; }
+.callout-nexus a.cta-link { font-family: var(--mono); color: var(--accent); border-bottom: 1px solid var(--accent); padding-bottom: 2px; }
+
+footer { background: var(--paper-2); padding-block: 2.5rem; border-top: 1px solid var(--rule); font-size: 0.85rem; color: var(--muted); }
+footer .row { display: flex; flex-wrap: wrap; gap: 1.5rem; justify-content: space-between; align-items: center; }
+footer code { font-family: var(--mono); font-size: 0.8rem; color: var(--ink-soft); }
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --paper: #15110d;
+    --paper-2: #1f1a14;
+    --ink: #f4eee5;
+    --ink-soft: #e0d8cc;
+    --muted: #b8b0a4;
+    --rule: #3a342c;
+  }
+  body { background: var(--paper-2); color: var(--ink); }
+  .backronym .letter { background: var(--paper); }
+  .signup input[type="email"] { background: var(--paper); color: var(--ink); }
+}
+</style>
+</head>
+<body>
+<header class="hero">
+  <div class="shell">
+    <span class="free-badge">free · open source</span>
+    <h1><strong>DONNA</strong>, free for the curious.</h1>
+    <p class="lede">Decision-Oriented Network Notarisation for Attorneys. Speak what needs doing — DONNA routes the work, confirms it's done, and saves a signed proof your firm can verify.</p>
+    <div class="cta-row">
+      <a class="btn btn-primary" href="/try/">Try the demo</a>
+      <a class="btn btn-ghost" href="https://github.com/chiefofstaff-legal/donna" rel="noopener">View source</a>
+    </div>
+  </div>
+</header>
+
+<section class="backronym">
+  <div class="shell">
+    <h2>What the letters mean.</h2>
+    <div class="grid">
+      <div class="letter"><span class="glyph">D</span><span class="word">Decision</span><p>The unit of work. Every delegated action emits a structured Intent Decision Record — who decided, on what evidence, with what confidence — captured at the moment.</p></div>
+      <div class="letter"><span class="glyph">O</span><span class="word">Oriented</span><p>Architecture orients around Decisions, not documents and not chats. Decisions are the first-class object.</p></div>
+      <div class="letter"><span class="glyph">N</span><span class="word">Network</span><p>Two networks: language models routed across providers, and attorneys + matters with delegations that persist across firms.</p></div>
+      <div class="letter"><span class="glyph">N</span><span class="word">Notarisation</span><p>Every delegated decision is signed and chained to the prior one. The chain replays for audit, regulators, partners. Tamper-evident by construction.</p></div>
+      <div class="letter"><span class="glyph">A</span><span class="word">(for) Attorneys</span><p>Legal vertical, exactly. Attorneys are both the audience DONNA serves and the partners who shape what it becomes.</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="overview">
+  <div class="shell">
+    <p class="timer">60 seconds · what DONNA does</p>
+    <h2>From spoken intent to a verifiable trail.</h2>
+    <ol>
+      <li><strong>You speak.</strong> "Get the partnership agreement reviewed for clause 7 ambiguity by Friday."</li>
+      <li><strong>DONNA captures it.</strong> Voice → text → structured intent. Sensitive material is redacted before any model sees it.</li>
+      <li><strong>DONNA routes it.</strong> The right human or AI gets the job, with the brief and the deadline. Free public tier uses an open language model — no paid keys required to try.</li>
+      <li><strong>The work returns.</strong> Output comes back with a confidence score and a falsification check.</li>
+      <li><strong>It's notarised.</strong> A signed Intent Decision Record is hash-chained to the previous one. Verify the chain in seconds, on any machine, with stdlib tools.</li>
+    </ol>
+    <p style="margin-top: 1.5rem; color: var(--muted);">This page runs on the open AGPL primitives. The richer engine — multi-model council, sensitivity routing, falsification review, versioned matter summaries — lives in the NEXUS tier.</p>
+  </div>
+</section>
+
+<section class="signup">
+  <div class="shell">
+    <h2>Get launch updates.</h2>
+    <p>One inbox, one address, no marketing automation. A real human replies within 24 hours.</p>
+    <form id="signup-form" novalidate>
+      <input type="email" name="email" placeholder="you@firm.example" autocomplete="email" required aria-label="Email address">
+      <button class="btn btn-primary" type="submit">Notify me</button>
+    </form>
+    <p class="status" id="signup-status" role="status" aria-live="polite"></p>
+  </div>
+</section>
+
+<section class="callout-nexus">
+  <div class="shell">
+    <h2>Want the full engine?</h2>
+    <p>The open page proves the verb. The full IDR engine — multi-model council, sensitivity routing, falsification review, versioned matter summaries, calendar + email + matter graph — is the NEXUS tier on chiefofstaff.pro.</p>
+    <a class="cta-link" href="https://chiefofstaff.pro" rel="noopener">See NEXUS on chiefofstaff.pro →</a>
+  </div>
+</section>
+
+<footer>
+  <div class="shell row">
+    <div>DONNA is open source under the AGPL-3.0. <a href="https://github.com/chiefofstaff-legal/donna" rel="noopener">github.com/chiefofstaff-legal/donna</a>.</div>
+    <div><code>scaffold-W2 · 2026-05-11</code></div>
+  </div>
+</footer>
+
+<script>
+(function () {
+  var form = document.getElementById("signup-form");
+  var status = document.getElementById("signup-status");
+  if (!form) return;
+  form.addEventListener("submit", async function (e) {
+    e.preventDefault();
+    status.removeAttribute("data-tone");
+    status.textContent = "Sending…";
+    var email = (form.email.value || "").trim();
+    try {
+      var r = await fetch("/api/signup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: email })
+      });
+      var data = await r.json();
+      if (r.ok && data.ok) {
+        status.setAttribute("data-tone", "ok");
+        status.textContent = "Thanks. We'll reply within 24h.";
+        form.reset();
+      } else {
+        status.setAttribute("data-tone", "err");
+        status.textContent = "Please use a valid email.";
+      }
+    } catch (err) {
+      status.setAttribute("data-tone", "err");
+      status.textContent = "Network error. Please try again.";
+    }
+  });
+})();
+</script>
+</body>
+</html>

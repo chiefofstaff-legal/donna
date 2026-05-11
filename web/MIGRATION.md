@@ -1,19 +1,21 @@
 # MIGRATION — `web/` surface for free.donnaoss.com
 
-**Source plan:** `~/.claude/drafts/free-donnaoss-mvp-gap-analysis-2026-05-11.md`
-**Architecture lock:** Option 3b (stub IDR + NEXUS callout, on AGPL primitives)
-**Sprint plan:** `~/.claude/plans/free-donnaoss-mvp-sprint-2026-05-11.md`
+**Architecture:** thin Vercel-hosted web surface that exercises donna-legal's
+AGPL primitives (notarise + DocuSeal + voice prompts + MCP) without
+requiring the proprietary NEXUS tier. The full IDR engine lives in NEXUS
+(chiefofstaff.pro) per the Inverted Red Hat licensing model. A prominent
+"Want the full IDR? → chiefofstaff.pro" callout sits on every demo page.
 
 ## Source surfaces
 
-| Layer | Source | Treatment under W2 |
-|-------|--------|--------------------|
-| Visual + UI flows | `~/nexus-poc/` (Next.js 16 App Router, 14 pages) | **Concept-port only** — no nexus-poc files copied in W2; W3 lifts specific page shapes (time, tasks, idr, drafting) and re-implements as static HTML |
-| Engine | `hal.grip-web.com/api/chat` | Used directly via `web/api/chat.js`. No separate LLM infrastructure inside the repo. Free public tier defaults to Groq llama-3.3-70b. |
-| Audit-chain primitive | `~/donna-legal/bin/notarise` | Already-OSS substrate. W3+ may shell out to `bin/notarise` for the IDR demo. W2 ships only the explainer stub. |
-| DocuSeal shim | `~/donna-legal/lib/docuseal.py` | Available; W5 may surface it via `/api/docuseal/*`. Not in W2. |
-| Voice pipeline | `~/donna-legal/client/donna/voice_pipeline.py` | Available; W3 may add a voice-prompt demo. EN-only today (DE deferred). |
-| Signup → Slack | `~/CodeTonight/donnaoss.com/api/signup.js` (apex) | **Ported into `web/api/signup.js`** with two-tier fallback (`SLACK_WEBHOOK_URL` → `SLACK_BOT_TOKEN`+`SLACK_CHANNEL_ID`). Default channel ID `C0B3Q8CD30Q` (#donna-signups, CodeTonight workspace). |
+| Layer | Source | Treatment |
+|-------|--------|-----------|
+| Visual + UI flows | reference patterns (Next.js App Router) | **Concept-port only** — no proprietary code copied. Page shapes (time, tasks, IDR, drafting) re-implemented as static HTML. |
+| LLM engine | `hal.grip-web.com/api/chat` | Used directly via `web/api/chat.js`. No separate LLM infrastructure inside the repo. Free public tier defaults to Groq llama-3.3-70b. |
+| Audit-chain primitive | `bin/notarise` (this repo) | Already-OSS substrate. `web/lib/idr.js` is a byte-level Node port of the Python implementation, with parity tests against `PROBAT.md`. |
+| DocuSeal shim | `lib/docuseal.py` (this repo) | Available; future waves may surface it via `/api/docuseal/*`. |
+| Voice pipeline | `client/donna/voice_pipeline.py` (this repo) | Available; voice transcription endpoint is currently a 503 stub (Whisper integration deferred to a later wave). |
+| Signup → Slack | (concept-ported pattern) | `web/api/signup.js` posts with two-tier fallback (`SLACK_WEBHOOK_URL` → `SLACK_BOT_TOKEN`+`SLACK_CHANNEL_ID`), with a Tier 3 log-only fallback so the visitor experience never breaks even when no Slack creds are configured. |
 
 ## Branding
 
@@ -32,34 +34,41 @@
 No additional licence file inside `web/`. The footer of every public page
 links to the OSS repo and surfaces the licence note.
 
-## Channel scope (PARAMOUNT)
+## Signup channel scope
 
-`web/api/signup.js` posts ONLY to a CodeTonight Slack channel
-(`C0B3Q8CD30Q` = #donna-signups). It NEVER posts to Sudonum (#grip-news
-is GRIP/HAL/happi.md-only) and NEVER to #ff-chat (Slack Connect external).
-Per `feedback_codetonight_workspace_only_for_donna_announcements.md`.
+`web/api/signup.js` deliberately leaves `SLACK_WEBHOOK_URL`,
+`SLACK_BOT_TOKEN`, and `SLACK_CHANNEL_ID` unset by default. The endpoint
+falls through to a log-only Tier 3 so a self-hoster who has not configured
+Slack still gets a working signup flow (visitor sees success, email lands
+in Vercel logs). Operators self-hosting `free.donnaoss.com` MUST set their
+own Slack delivery target — there is no upstream default.
 
-## What is NOT in W2
+## Wave delivery
 
-| Wave | Deferred work |
-|------|---------------|
-| W3 | nexus-poc UI flows (time entry, tasks, IDR page, NDA drafting) re-implemented as static HTML in `web/demo/*` |
-| W5 | Backend wiring + per-tenant isolation + (optional) `/api/notarise` shell-out to `bin/notarise` |
-| W8 | E2E smoke + WCAG AA audit (light + dark) + mobile audit (320px viewport) + Craig's GoDaddy A-record DNS confirmation |
-| W13 | Polish + Vercel custom domain alias + launch announcement (CodeTonight channels only) |
+| Wave | Deliverable |
+|------|-------------|
+| W2 | `web/` scaffold (landing, vercel.json, chat/signup/health API stubs, /try/ chat demo, /idr-stub/ explainer) |
+| W3 | Four interactive demo pages (`/demo/voice-time-entry`, `/demo/voice-task-delegation`, `/demo/draft-nda`, `/demo/audit-chain`) — voice degrades gracefully to text mode until W5 wires Whisper |
+| W5 | `web/lib/idr.js` Node port of `bin/notarise` + `/api/notarise` + `/api/verify` + `/api/voice` (503 stub) + parity test |
+| W8 | Vercel preview deploy + 7-endpoint smoke + a11y + brand audit + DNS confirmation |
+| W13 | Polish (iOS HIG defensive, `og.png` parity, `trailingSlash` normalisation) + PR + custom-domain wire-up |
 
-## Falsifiers carried forward from the gap analysis
+## Falsifiers carried forward
 
 - **F1** — visitor analytics show >50% bounce on `/try/` within 30s with
   qualitative feedback "the IDR engine isn't actually here". Would force
-  reconsideration of 3b → 3a.
+  reconsideration of the stub-plus-callout pattern in favour of porting
+  the full engine.
 - **F2** — legal-tech press writes "DONNA isn't really open source because
-  the brain is closed". Forces counter-narrative or 3a Phase 2.
-- **F3** — Craig Miller messages "where's the actual decision-recording
-  in the demo?". Forces 3a.
-- **F4** — community PR ports nexus-poc-style IDR compute and gets >5
-  thumbs-up in 48h. 3b under-delivered.
+  the brain is closed". Forces counter-narrative or full-port.
+- **F3** — early adopters consistently ask "where's the actual decision-
+  recording in the demo?" rather than engaging with the audit-chain page.
+  Forces full-port.
+- **F4** — community PR ports a full IDR compute path and gets significant
+  positive reception in 48h. Indicates the stub under-delivered.
 
-Track all four through W13 launch + first 7 days post-launch. Reframe
-H448 at W3 dispatch ("AGPL-published surfaces work identically on
-free.donnaoss.com to local CLI") so the hypothesis is testable under 3b.
+The hypothesis "AGPL-published surfaces work identically on free.donnaoss.com
+to the local CLI" is testable today: PROBAT.md verifies end-to-end through
+both Python (`bin/notarise verify`) and JavaScript (`web/lib/idr.js`
+`verifyChain`), with byte-level cross-validation in
+`web/tests/idr-parity.test.js`.

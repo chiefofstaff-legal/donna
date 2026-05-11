@@ -1,26 +1,40 @@
 # web/ — free.donnaoss.com surface
 
-Thin Vercel-hosted landing for `free.donnaoss.com`. Built on Option 3b
-(stub IDR + NEXUS callout) per
-`~/.claude/drafts/free-donnaoss-mvp-gap-analysis-2026-05-11.md` section 10.
+Thin Vercel-hosted landing for `free.donnaoss.com`. Stub-IDR + NEXUS-callout
+architecture: this surface exposes the AGPL primitives in `donna-legal`
+(audit-chain notarisation, DocuSeal integration, voice prompts, MCP server)
+without bundling the proprietary IDR engine. A "Want the full IDR? →
+chiefofstaff.pro" callout sits on every demo page.
 
 ## Layout
 
 ```
 web/
   index.html        landing — DONNA backronym, 60s overview, signup, NEXUS callout
-  vercel.json       security headers + rewrites (mirrors apex donnaoss.com)
+  vercel.json       security headers + rewrites
   robots.txt
   sitemap.xml
-  og.png            social card placeholder (replace with brand asset before launch)
+  og.png            social card
   api/
     chat.js         POST → proxy to hal.grip-web.com/api/chat (free Groq tier)
-    signup.js       POST → Slack #donna-signups (two-tier fallback)
+    signup.js       POST → Slack webhook/bot fallback (Tier 3 log-only by default)
     health.js       GET  → liveness probe
+    notarise.js     POST → HMAC-SHA256 IDR signer (parity with bin/notarise)
+    verify.js       POST → IDR record/chain verifier
+    voice.js        POST → 503 + Retry-After (Whisper integration deferred)
   idr-stub/
     index.html      plain-language IDR explainer + NEXUS callout
   try/
     index.html      interactive HAL chat demo
+  demo/
+    voice-time-entry.html        voice + text-mode time-entry parsing
+    voice-task-delegation.html   voice + text-mode task delegation
+    draft-nda.html               5-field NDA drafting + alt-phrasing
+    audit-chain.html             live notarise + verify + chain visualisation
+  lib/
+    idr.js          Node port of bin/notarise (HMAC-SHA256, stdlib crypto)
+  tests/
+    idr-parity.test.js   5 tests including PROBAT.md gold-standard parity
   MIGRATION.md      port plan + boundary docs
 ```
 
@@ -35,38 +49,54 @@ cd web && python3 -m http.server 4000
 ```
 
 The `/api/*` routes are Vercel serverless and only run under the Vercel
-runtime (or a local Vercel dev server).
+runtime (or a local Vercel dev server: `npx vercel dev`).
+
+## Test the IDR parity locally
+
+```bash
+cd web
+node --test tests/idr-parity.test.js
+# Expect: 5 pass / 0 fail (incl. PROBAT.md verification + Python↔JS cross-validation)
+```
 
 ## Deploy (Vercel)
 
 ```bash
 cd web
-vercel link                           # link to a Vercel project
-vercel --prod                          # production deploy
+vercel link --yes              # link to a Vercel project (any team)
+vercel --prod                  # production deploy
 ```
 
-Project name suggestion: `donna-web` under the CodeTonight Vercel team.
-Custom domain `free.donnaoss.com` is aliased to this project AFTER the
-GoDaddy A record (`free → 76.76.21.21`) has propagated.
+Custom domain `free.donnaoss.com` is aliased to the project after the
+GoDaddy A record (`free → 76.76.21.21`) propagates:
+
+```bash
+vercel domains add free.donnaoss.com
+```
 
 ## Required env vars (Vercel project settings)
 
 | Var | Purpose | Required? |
 |-----|---------|-----------|
-| `SLACK_WEBHOOK_URL` | Tier 1 signup delivery (channel-bound webhook) | optional, preferred |
+| `DONNA_NOTARISE_KEY` | HMAC signing key for `/api/notarise` and `/api/verify` (use the published demo key from `../PROBAT.md` for a public free-tier demo) | yes |
+| `SLACK_WEBHOOK_URL` | Tier 1 signup delivery (channel-bound webhook) | optional |
 | `SLACK_BOT_TOKEN`   | Tier 2 signup delivery (chat.postMessage) | optional fallback |
-| `SLACK_CHANNEL_ID`  | Channel for Tier 2 (default `C0B3Q8CD30Q` = #donna-signups) | optional |
+| `SLACK_CHANNEL_ID`  | Channel for Tier 2 | optional |
 
 `api/chat.js` requires no env vars — `hal.grip-web.com/api/chat` is the
-public LLM contract.
+public LLM contract used by the demo (free Groq tier, no key needed).
+
+If both Slack vars are unset, `/api/signup` falls through to a Tier 3
+log-only path: the visitor sees success and the email lands in Vercel
+serverless logs. This is the safe default for a public demo.
 
 ## What is intentionally NOT here yet
 
-- Voice surface ports (W3 will lift the recording UI from nexus-poc).
-- NDA drafting demo (W5 will add `web/demo/draft-nda.html`).
-- E2E smoke tests + WCAG audit + mobile audit (W8).
-- Per-IP rate limiting on `/api/chat` (W8 — start at 30 req/min/IP).
-- Custom domain alias + DNS confirmation (W13 launch wave).
+- Voice transcription endpoint (`/api/voice` returns 503 with `Retry-After`
+  so the demo pages render their graceful-degrade banner; real Whisper
+  integration is a follow-up).
+- Per-IP rate limiting on `/api/chat` (recommend 30 req/min/IP at the
+  edge before public launch).
 
 ## Branding rules
 

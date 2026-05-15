@@ -108,8 +108,37 @@ DONNA routes extracted intents to integrations you configure.
 | `VAD_AGGRESSIVENESS` | `2` | webrtcvad aggressiveness 0–3 (higher = less sensitive) |
 | `STT_BACKEND` | `api` | `api` (Whisper API) or `local` (local openai-whisper) |
 | `CACHE_DB` | `~/.donna/cache.db` | SQLite path for offline-first local store |
+| `DONNA_PII_SHIELD` | on | PII Shield is wired default-on; set `0`/`false`/`off` to disable |
+| `PII_LOCAL_LLM_BASE_URL` | `http://localhost:11434/v1` | Layer-2 redaction model — **local host only** (cloud URLs refused, fail-closed) |
+| `PII_LOCAL_LLM_MODEL` | `llama3.2` | Local model for the layer-2 PII pass |
 
 ---
+
+## Privacy: the PII Shield
+
+The PII Shield (`donna/pii_shield.py`) is **wired default-on**. Every
+extraction in the runtime path runs through it before any cloud LLM call —
+unless you explicitly set `DONNA_PII_SHIELD=0`.
+
+Two layers (defence-in-depth):
+
+1. **Regex** — fast, deterministic: suffixed org names, multi-token person
+   names, case references → stable placeholders (`ORG_1`, `PERSON_1`, …).
+2. **Local inference** — an OpenAI-compatible model on *your own machine*
+   (default `http://localhost:11434/v1`) catches what regex cannot: single
+   names, suffix-less orgs, addresses, amounts, account numbers.
+
+The narrative is de-anonymised before it is stored locally, so your entries
+keep real names; only the cloud LLM sees placeholders.
+
+**Local-only and fail-closed by construction:** the layer-2 detector refuses
+any non-local endpoint, and if the local model is unreachable the shield
+raises instead of forwarding partially-redacted text — the cloud call does
+not happen. There is deliberately no cloud fallback for redaction.
+
+No client-side redaction is provably exhaustive against free-form speech.
+The strongest guarantee is to run the model layer itself locally: point
+`LLM_BASE_URL` at Ollama and nothing leaves your infrastructure at all.
 
 ## The prompt library
 

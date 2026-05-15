@@ -102,19 +102,37 @@ is the substrate of the proprietary NEXUS tier.
 
 ## Privacy posture
 
-The PII Shield (`client/donna/pii_shield.py`) runs **before any LLM call**:
+The PII Shield (`client/donna/pii_shield.py`) is **wired default-on in the
+runtime path** — `Router.__init__` constructs it for every extraction unless
+the operator explicitly sets `DONNA_PII_SHIELD=0`. It runs **before any
+cloud LLM call**, in two layers (defence-in-depth):
 
-- **Org names** (Acme Corp, Smith LLP, Foundation Trust) → `ORG_1`, `ORG_2`
-- **Person names** (John Smith, Mary Doe Jones) → `PERSON_1`, `PERSON_2`
-- **Case references** (ABC-2024-0123) → `CASE_1`, `CASE_2`
+- **Layer 1 — regex** (fast, deterministic): org names with a legal suffix
+  (Acme Corp, Smith LLP, Foundation Trust) → `ORG_1`; two/three-token person
+  names (John Smith) → `PERSON_1`; case references (ABC-2024-0123) → `CASE_1`.
+- **Layer 2 — local inference** (catches what regex cannot): an
+  OpenAI-compatible model running **on the firm's own machine** (default
+  `http://localhost:11434/v1`, e.g. Ollama) flags single/informal names
+  ("Mike", "Smith"), suffix-less orgs ("Acme"), street addresses, monetary
+  amounts, and account numbers. Its spans are merged with the regex hits and
+  anonymised with the same stable-placeholder scheme.
 
-Mappings are session-stable: *"Acme Corp"* stays the same placeholder across
-every utterance in one session. The narrative is de-anonymised before it
-lands in the local SQLite cache. The LLM never sees the real names.
+Mappings are session-stable: the same entity maps to the same placeholder
+across every utterance in one session. The narrative is de-anonymised before
+it lands in the local SQLite cache, so stored entries keep the real names.
 
-A firm can run the voice surface fully offline (Ollama or local Whisper) and
-never touch a cloud model. The audit chain still works because the IDR
-engine signs at the local-host boundary.
+**Local-only, fail-closed — by construction.** The layer-2 detector refuses
+any non-local `base_url` (a cloud endpoint is rejected at construction). If
+the local model is unreachable the shield raises rather than forwarding
+partially-redacted text — the cloud call does **not** proceed. There is no
+cloud fallback for the redaction pass by design.
+
+**Honest scope.** Layer 1 + layer 2 substantially reduce what a cloud
+provider can see, but no client-side redaction is provably exhaustive
+against free-form dictation. The **ultimate** guarantee is to run the model
+layer itself locally: point `LLM_BASE_URL` at Ollama / local Whisper and no
+transcript — redacted or not — leaves the firm's infrastructure. The audit
+chain still works because the IDR engine signs at the local-host boundary.
 
 ## Configuration (`client/.env`)
 
@@ -125,6 +143,9 @@ engine signs at the local-host boundary.
 | `LLM_MODEL` | `gpt-4o-mini` | Model name for whichever provider |
 | `CONFIDENCE_THRESHOLD` | `0.7` | Below this, DONNA asks a clarifying question instead of locking the IDR |
 | `CACHE_DB` | platform default | SQLite path for local cache |
+| `DONNA_PII_SHIELD` | on | Set `0`/`false`/`off` to disable the PII Shield (ON otherwise) |
+| `PII_LOCAL_LLM_BASE_URL` | `http://localhost:11434/v1` | Layer-2 detector endpoint — **must be a local host** (cloud URLs are refused) |
+| `PII_LOCAL_LLM_MODEL` | `llama3.2` | Local model name for the layer-2 redaction pass |
 | `DONNA_NOTARISE_KEY` | — | HMAC signing key for the audit chain |
 | `DONNA_WEBHOOK_URL` | — | Optional: POST every IDR to your own backend |
 
@@ -146,8 +167,12 @@ This skill is wrong if:
   (keep them aligned; the test suite covers this)
 - Lawyers prefer typing over speaking after week 2 of usage — typed:voice
   ratio above 70:30 means voice is not the right modality
-- The PII Shield regex misses a client-name entity in real transcripts at
-  >2% rate — would force a switch to ML-based NER (spaCy or transformer)
+- The two-layer PII Shield (regex + local inference) misses a client-name
+  entity in real transcripts at >2% rate, OR a fresh clone shows the shield
+  unwired (Router building an Extractor with `pii_session=None`), OR the
+  layer-2 detector can be pointed at a cloud endpoint — any of these breaks
+  the "real names stay local before the cloud call" promise
+  (regression-guarded by `tests/test_pii_shield.py`)
 - The IDR chain rejects valid IDRs at >0.1% rate — chain integrity is the
   brand promise; any failure rate above noise breaks the verb
 

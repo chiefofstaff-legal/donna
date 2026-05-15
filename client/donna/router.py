@@ -15,8 +15,27 @@ from donna.models import (
     Task,
     TimeEntry,
 )
+from donna.pii_shield import LocalLLMEntityDetector, PiiSession
 from donna.prompts import PromptLibrary
 from donna.store import TaskStore, TimeEntryStore
+
+
+def build_pii_session(config: Config) -> PiiSession | None:
+    """Construct the default-on PII shield for the production path.
+
+    Returns a PiiSession wired with the regex layer AND the local-inference
+    detector unless the operator explicitly set DONNA_PII_SHIELD=0. The
+    detector only ever talks to a local host (enforced in its constructor,
+    fail-closed) — raw transcript never reaches a cloud provider.
+    """
+    if not config.pii_shield_enabled:
+        return None
+    detector = LocalLLMEntityDetector(
+        base_url=config.pii_local_llm_base_url,
+        model=config.pii_local_llm_model,
+    )
+    return PiiSession(detector=detector)
+
 
 RouterResult = Union[TimeEntry, Task, ClarifyRequest]
 
@@ -66,7 +85,12 @@ class Router:
     ):
         self._config = config
         self._prompts = prompts or PromptLibrary(config.prompt_dir)
-        self._extractor = extractor or Extractor(config, self._prompts)
+        # PII Shield is wired DEFAULT-ON in the runtime path. A caller can
+        # still inject its own extractor (tests do), but the production
+        # construction always attaches the shield unless DONNA_PII_SHIELD=0.
+        self._extractor = extractor or Extractor(
+            config, self._prompts, pii_session=build_pii_session(config)
+        )
         self._time_store = time_store or TimeEntryStore(config.cache_db)
         self._task_store = task_store or TaskStore(config.cache_db)
 

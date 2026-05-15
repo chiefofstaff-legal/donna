@@ -24,6 +24,23 @@ STT_BACKEND_VAR = "DONNA_STT_BACKEND"
 # v0.6 webhook env var
 WEBHOOK_URL_VAR = "DONNA_WEBHOOK_URL"
 
+# PII Shield env vars (v0.9 — wired default-on, defence-in-depth)
+PII_SHIELD_VAR = "DONNA_PII_SHIELD"            # "0"/"false"/"off" disables; ON otherwise
+PII_LOCAL_LLM_BASE_URL_VAR = "PII_LOCAL_LLM_BASE_URL"
+PII_LOCAL_LLM_MODEL_VAR = "PII_LOCAL_LLM_MODEL"
+
+# Hosts the local-inference PII pass is allowed to talk to. The detector
+# refuses any base_url whose host is not in this set — a cloud endpoint
+# (api.openai.com, api.anthropic.com, …) can never receive raw transcript.
+PII_LOCAL_HOSTS = frozenset({"localhost", "127.0.0.1", "0.0.0.0", "::1", "host.docker.internal"})
+
+
+def _env_bool(name: str, default: bool) -> bool:
+    raw = os.environ.get(name, "").strip().lower()
+    if not raw:
+        return default
+    return raw not in {"0", "false", "off", "no"}
+
 
 def _default_prompt_dir() -> Path:
     return (Path(__file__).resolve().parent.parent.parent / "voice-prompts").resolve()
@@ -49,6 +66,12 @@ class Config:
     stt_backend: str = "api"
     # v0.6 webhook
     webhook_url: Optional[str] = None
+    # v0.9 PII Shield — ON unless explicitly disabled. The local-inference
+    # second layer only talks to pii_local_llm_base_url, which must be a
+    # local host (enforced by the detector, fail-closed).
+    pii_shield_enabled: bool = True
+    pii_local_llm_base_url: str = "http://localhost:11434/v1"
+    pii_local_llm_model: str = "llama3.2"
 
     def __post_init__(self) -> None:
         if not self.openai_api_key:
@@ -100,4 +123,12 @@ def load_config() -> Config:
         vad_aggressiveness=_env_int(VAD_AGGRESSIVENESS_VAR, 2),
         stt_backend=os.environ.get(STT_BACKEND_VAR, "api").strip() or "api",
         webhook_url=os.environ.get(WEBHOOK_URL_VAR, "").strip() or None,
+        pii_shield_enabled=_env_bool(PII_SHIELD_VAR, True),
+        pii_local_llm_base_url=(
+            os.environ.get(PII_LOCAL_LLM_BASE_URL_VAR, "").strip()
+            or "http://localhost:11434/v1"
+        ),
+        pii_local_llm_model=(
+            os.environ.get(PII_LOCAL_LLM_MODEL_VAR, "").strip() or "llama3.2"
+        ),
     )

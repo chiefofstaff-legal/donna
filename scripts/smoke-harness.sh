@@ -46,7 +46,16 @@ run_scenario() {
 }
 
 count_idr_entries() {
-    grep -c '^\`\`\`idr' "$1" 2>/dev/null || echo 0
+    # Backticks are literal in grep — do NOT backslash-escape them. GNU grep
+    # (Linux CI) treats \` as a zero-width start-of-buffer anchor, so the
+    # escaped pattern matched nothing and every count was 0; BSD grep (macOS)
+    # treats \` as a literal backtick, so it passed locally — the 5-day
+    # CI/local split. Also emit exactly one integer: `grep -c` prints "0"
+    # AND exits 1 on zero matches, so a bare `|| echo 0` produced "0\n0",
+    # which broke the numeric `-gt` compare in verify_idr_grew.
+    local n=0
+    [ -f "$1" ] && n=$(grep -c '^```idr' "$1" 2>/dev/null || true)
+    printf '%s\n' "${n:-0}"
 }
 
 verify_idr_grew() {

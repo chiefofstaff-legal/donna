@@ -1,89 +1,122 @@
 # DONNA
 
-**Decision-Oriented Network Notarisation for Attorneys**
+**DONNA — Decision-Oriented Network Notarisation for Attorneys**
 
-> *DONNA handles the work around the work — so judgement stays with the lawyer.*
+> *The lawyer speaks. DONNA routes. The proof is signed. Judgement stays with the lawyer.*
 
 [![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL%20v3-b35e15.svg)](https://www.gnu.org/licenses/agpl-3.0)
 [![Status: alpha](https://img.shields.io/badge/Status-alpha-grey.svg)](#status)
-[![Surface: open](https://img.shields.io/badge/Surface-AGPL--3.0-b35e15.svg)](#what-ships-open)
-[![Substrate: NEXUS tier](https://img.shields.io/badge/Substrate-NEXUS%20tier-grey.svg)](#what-ships-proprietary)
-[![Roadmap: published](https://img.shields.io/badge/Roadmap-published-b35e15.svg)](ROADMAP.md)
 [![Tests](https://github.com/chiefofstaff-legal/donna/actions/workflows/test.yml/badge.svg)](https://github.com/chiefofstaff-legal/donna/actions/workflows/test.yml)
 
-Open-source delegation orchestration for legal practice. The lawyer speaks. DONNA routes. The proof is signed. *Judgement stays with the lawyer.*
+---
 
-**Provider-agnostic by construction.** DONNA does not bind to a single AI vendor. The HAPPI/1.1 envelope routes the same intent across Anthropic, OpenAI, xAI, Google Gemini, DeepSeek, Qwen, and self-hosted vLLM or Ollama — switching providers is configuration, not code. The audit chain is the moat; the model is replaceable. When a vendor changes pricing, deprecates a model, or ships a closed plugin stack, your firm keeps moving.
+## What this is, in plain words
 
-> **A note on incompleteness.** DONNA OSS is alpha. We publish the [ROADMAP](ROADMAP.md) before the launch precisely because we are not finished. The journey vector — five waypoints from where we are today to the full delegation orchestration layer — is named, shared, and open to contribution. *"A clear starting point and a clear direction makes being incomplete acceptable."* (CC+|, 2026-05-08)
+Senior lawyers lose about a day a week to the work *around* the work — arranging
+inputs, chasing the next step, copy-pasting between tools. The AI does the task;
+the lawyer still does the coordination. That coordination is where billable hours
+quietly go.
 
-> **Why this matters now.** Three signals arrived in the same quarter and they read as one structural moment.
->
-> 1. ***Munir v Secretary of State for the Home Department* [2026] UKUT 81** — the UK Upper Tribunal ruled in November 2025 that uploading client material to a public AI service destroys legal privilege permanently, and explicitly distinguished *"closed-source AI tools which do not place information in the public domain"* as acceptable. The privilege boundary is now judicial authority, not Law Society guidance. ([Source.](https://caselaw.nationalarchives.gov.uk/ukut/iac/2026/81))
-> 2. **Claude for Legal launched as a closed plugin stack** — 12 practice-area plugins and 20+ connectors (DocuSign, iManage, NetDocuments, LexisNexis, Thomson Reuters, Harvey, Relativity, Box, Everlaw). The UI is no longer the product; the plugin stack is. A firm that builds on one vendor's plugins inherits that vendor's roadmap, pricing, and outage surface.
-> 3. **Anthropic Agent SDK moved off subscription onto metered credits** (15 June). Predictable monthly cost became per-call billing. A firm running a high-volume agent loop now has a meter running in the background.
->
-> Self-hosted, audit-chained, provider-agnostic, never-locked-to-one-vendor is no longer a sales pitch — it is a practising-certificate question. DONNA is built for that question.
+DONNA takes the coordination. You say what you want — *"send Sarah the M&A
+precedent we used for Dubrovnik, ask her to redline by Tuesday, copy Marcus when
+she replies"* — and DONNA routes it to the right person, system, and tool. Every
+delegated decision is captured as a signed, tamper-evident receipt: who decided,
+on what evidence, with which AI model, when. The receipt replays years later on a
+regulator's laptop with nothing but Python's standard library. Judgement stays
+with the lawyer; only the coordination is handed over.
+
+**Why now.** In late 2025 a UK tribunal ruled that putting client material into a
+public AI service permanently destroys legal privilege — and pointedly treated
+*closed, self-hosted* tools as the acceptable alternative. Overnight, "where does
+our client data actually go?" stopped being an IT preference and became a
+practising-certificate question. DONNA is built to be self-hosted and not bound
+to any one AI vendor, so a firm can answer that question for itself.
+[Read the legal detail →](#why-now-the-legal-detail)
 
 ---
 
-## What DONNA is
+## See it in 60 seconds
 
-Senior lawyers spend a day a week *coordinating the work around the work* — arranging inputs, progressing steps, copy-pasting outputs between tools. The AI handles the task. The lawyer still handles the orchestration. That coordination is where billable hours go.
-
-DONNA takes the orchestration. The lawyer speaks the intent — *"send Sarah the M&A precedent we used for Dubrovnik, ask her to redline by Tuesday, copy Marcus when she replies"* — and DONNA routes it: to the right person, the right system, the right tool. Every delegated decision is captured as a structured **IDR (Intent Decision Record)**, signed with HMAC-SHA256, chained, replayable, exportable in regulator-ready formats.
-
-After *Munir*, the IDR is the audit-evidentiary backbone: every delegated decision carries `decision_id`, `previous_hash`, `signer`, `confidence`, the model and provider used, and a cryptographic signature. The chain replays end-to-end on a regulator's laptop with Python stdlib alone. A firm can answer *who decided what, on what evidence, with which model, when* — for any matter, years later, without trusting our servers or any vendor's plugin layer.
-
-This is not transcription. We do not store voice notes for later interpretation. *Speech is a means, not the product.*
-
-The acronym is the brand. Each letter carries its own meaning:
-
-| Letter | Word | What it means |
-|--------|------|---------------|
-| **D** | Decision | The unit of work in DONNA is the Decision. Every delegated action produces a structured record — an **IDR (Intent Decision Record)** — not a chat log buried in someone's history. Who decided, on what evidence, with what confidence: captured at the moment it happened. |
-| **O** | Oriented | The whole architecture orients around Decisions — not around documents (like Mike, Harvey, Legora) and not around chats (like ChatGPT). The decision itself is the first-class object; documents and conversations are inputs to it. Orientation, not interface, is what makes DONNA a different category. |
-| **N** | Network | Two networks at once. **A network of language models** — DONNA routes between providers (Anthropic, OpenAI, xAI, Gemini, DeepSeek, Qwen, vLLM, Ollama) via the open HAPPI/1.1 envelope. Switching providers is a config change, not a code change. The firm is never locked to one vendor's roadmap, one model's failure mode, or one billing meter. **A network of attorneys and matters** — delegated decisions are preserved across the firm and across firms, not a single conversation. |
-| **N** | Notarisation | Every delegated decision is signed and linked to the one before it — like a notary's stamp on each page of a logbook. The chain cannot be quietly altered. It replays for audit, for regulators, and for any partner who needs proof of what was decided and when. (Implementation: HMAC-SHA256 signature + `previous_hash` chaining — see [`PROBAT.md`](PROBAT.md) and [`bin/notarise`](bin/notarise) for the live demonstration.) |
-| **A** | (for) Attorneys | The legal vertical, exactly. Attorneys are both the audience DONNA serves and the partners who shape what it becomes — not adjacent professions, not generalist agents, and not a finished product without practitioner expertise. We defer to experienced lawyers to tell us what is missing and to help build it. |
-
-The acronym is the **explanation**, not the marketing. The substrate is the IDR, the audit chain, and the multi-party verification model.
-
-> **Look at [`PROBAT.md`](PROBAT.md)** at the root of this repository. Every commit on DONNA's main branch generates an IDR — `decision_id`, `previous_hash`, `commit_sha`, `signer`, `confidence`, HMAC-SHA256 signature. The chain notarises itself. Verify any entry locally with `bin/notarise verify --chain PROBAT.md` (Python stdlib, no dependencies). *DONNA probat* is not a slogan; it is a runtime invariant of this repository. The repo is its own audit-chain demo.
-
----
-
-## What ships open
-
-Released under **AGPL-3.0**:
-
-- **Voice surface** — speech-to-text, intent extraction, conversation routing
-- **MCP server scaffolding** — for Claude Desktop, Cursor, Claude Code, and any MCP-compatible client
-- **Skill files** — the conversational behaviours that turn voice into operations work (time entry, task delegation, matter summary)
-- **HAPPI/1.1 protocol reference** — the open audit-chain protocol DONNA implements (see [happi.md](https://gist.github.com/architext1/808548dd25cfac5cc47fb6e910b79292))
-
-A firm can clone this repository, run it on its own infrastructure, point it at a local model, and never touch our servers.
-
-## What ships proprietary
-
-The **IDR engine** — the implementation that signs, chains, and verifies every model decision — is the substrate of our **NEXUS tier**. The protocol is open ([happi.md v1.1](https://gist.github.com/architext1/808548dd25cfac5cc47fb6e910b79292)); the engine is licensed.
-
-Inverted Red Hat: open surface, proprietary substrate. The lawyer can host the surface; the audit chain is what the firm pays for.
-
----
-
-## First reference implementation
-
-The running MVP at **[free.donnaoss.com](https://free.donnaoss.com)** is open-sourced at **[chiefofstaff-legal/nexus](https://github.com/chiefofstaff-legal/nexus)** under AGPL-3.0. It implements the happi/1.1 protocol from this repository end-to-end: a PROBAT.md chain emitted by nexus verifies via `bin/notarise verify --chain` from this repo, byte-for-byte.
+You install nothing to see the substance. Clone, run one command, and watch a
+full workflow end to end — three lawyer utterances, intent extraction, signed
+records, chain verification, plain-English replay:
 
 ```bash
-git clone https://github.com/chiefofstaff-legal/nexus.git
-export DONNA_NOTARISE_KEY=nexus-public-demo-key-2026-05-11
-python3 bin/notarise verify --chain ../nexus/PROBAT.md
+git clone https://github.com/chiefofstaff-legal/donna.git
+cd donna
+make demo          # or: python3 demo/demo.py
+```
+
+It runs in well under a second with **zero dependencies** (Python standard
+library only):
+
+```
+Lawyer says: "Just spent 90 minutes on the Smith motion drafting the indemnity clauses."
+  → intent: {category: time_entry, duration_hours: 1.5, matter: Smith}
+  → IDR signed: idr_…  sig: 3516328196275e94…
+…three of those, chained, then: OK: 3 record(s) verified (HMAC-SHA256)
+```
+
+To spot-check just the static chain that ships with the repo:
+
+```bash
+export DONNA_NOTARISE_KEY=donna-public-demo-key-2026-05-08
+python3 bin/notarise verify --chain PROBAT.md
 # OK: 3 record(s) verified (HMAC-SHA256)
 ```
 
-nexus is the public face — full UI, FastAPI backend, document processing, audit chain, 27 OSS services. The 5 NEXUS-tier services (sensitivity router, council, classifier, PII detection, scorer) live in a separate private repository at `CodeTonight-SA/nexus-engine` and are imported only by the hosted deployment. The open-source clone runs with a simpler single-model router.
+That is the whole substrate: roughly 200 lines of standard-library Python — no
+servers, no LLM keys, no dependencies.
+
+---
+
+## The name is the explanation
+
+DONNA is an acronym. Each letter carries a load:
+
+| Letter | Word | What it means |
+|--------|------|---------------|
+| **D** | Decision | The unit of work. Every delegated action produces a structured **IDR (Intent Decision Record)** — not a chat log buried in someone's history. Who decided, on what evidence, with what confidence, captured as it happens. |
+| **O** | Oriented | The architecture orients around decisions — not documents (Mike, Harvey, Legora) and not chats (ChatGPT). The decision is the first-class object; documents and conversations are inputs to it. |
+| **N** | Network | Two networks. A network of **language models** — one intent routes across many providers via the open HAPPI/1.1 envelope, so switching vendor is config, not code. A network of **attorneys and matters** — decisions persist across the firm, not in one conversation. |
+| **N** | Notarisation | Every decision is signed and chained to the one before it, like a notary's stamp on each page of a logbook. The chain cannot be quietly altered; it replays for audit and for any partner who needs proof. (HMAC-SHA256 + `previous_hash` — see [`PROBAT.md`](PROBAT.md).) |
+| **A** | (for) Attorneys | The legal vertical, exactly. Attorneys are both the audience DONNA serves and the practitioners who shape what it becomes. We defer to experienced lawyers on what is missing. |
+
+**The repository proves it on itself.** Every commit on `main` adds an IDR to
+[`PROBAT.md`](PROBAT.md). The chain notarises its own history — verify any entry
+with the command above. *DONNA probat* is not a slogan; it is a runtime invariant
+of this repo.
+
+---
+
+## Open service, proprietary substrate
+
+In 1993 Red Hat built a business by giving away the bits and selling the services
+around them. DONNA inverts the axes: the **service is open**, the **substrate is
+licensed**.
+
+- **Open, under [AGPL-3.0](LICENSE)** — the voice surface (speech-to-text, intent
+  extraction, routing), the MCP server scaffolding for any MCP-compatible client,
+  the skill files, and the [HAPPI/1.1 protocol reference](https://gist.github.com/architext1/808548dd25cfac5cc47fb6e910b79292).
+  Clone it, run it on your own hardware, point it at a local model, switch
+  providers at will, audit every line.
+- **Proprietary — the NEXUS tier** — the IDR engine that signs, chains, and
+  verifies every model decision. The *protocol* is open; the *engine* is what a
+  firm subscribes to when a matter needs regulator-grade provenance.
+
+A firm controls two things separately: privacy (run the voice locally, no data
+leaves) and verifiability (subscribe to the audit-chain engine when the matter
+warrants it). [Why we built the licence axes this way →](https://about.grip-web.com)
+
+### First reference implementation
+
+The running MVP at **[free.donnaoss.com](https://free.donnaoss.com)** is
+open-sourced at **[chiefofstaff-legal/nexus](https://github.com/chiefofstaff-legal/nexus)**
+under AGPL-3.0. It implements the HAPPI/1.1 protocol from this repository
+end-to-end — a `PROBAT.md` chain emitted by nexus verifies byte-for-byte with
+`bin/notarise verify --chain` from this repo. The hosted deployment adds a small
+set of NEXUS-tier services from a separate private repository; the open clone
+runs with a simpler single-model router.
 
 ---
 
@@ -91,119 +124,77 @@ nexus is the public face — full UI, FastAPI backend, document processing, audi
 
 > **Status:** alpha. Public release `v0.1.0` is **not yet tagged**.
 
-Three paths, depending on how deep you want to go. Each path builds on the one before it.
+Three paths, each building on the last. Full step-by-step instructions for every
+platform — including AI-client config and a troubleshooting table — are in
+**[`docs/install.md`](docs/install.md)**. If you read one document beyond this
+one, read that.
 
-### 1. The 60-second demo — watch the whole pipeline in one command
-
-You don't need to install anything to see the substance. Clone the repo, run one command, watch a full DONNA workflow end-to-end: three lawyer utterances → intent extraction → signed IDRs → audit-chain verification → replay.
-
-```bash
-git clone https://github.com/chiefofstaff-legal/donna.git
-cd donna
-make demo
-# (or: python3 demo/demo.py)
-```
-
-The whole pipeline runs in well under a second, with **zero dependencies** (stdlib Python only). You'll see three real lawyer-flavoured utterances pass through:
-
-```
-Lawyer says: "Just spent 90 minutes on the Smith motion drafting the indemnity clauses."
-  → intent: {category: time_entry, duration_hours: 1.5, matter: Smith}
-  → IDR signed: idr_...  sig: 3516328196275e94…
-```
-
-…three of those, chained, then verified (`OK: 3 record(s) verified (HMAC-SHA256)`), then replayed in plain English — *exactly what a regulator reads in an audit*.
-
-If you want to spot-check just the static audit chain that ships with the repo:
-
-```bash
-export DONNA_NOTARISE_KEY=donna-public-demo-key-2026-05-08
-python3 bin/notarise verify --chain PROBAT.md
-# expected: OK: 3 record(s) verified (HMAC-SHA256)
-```
-
-That's the entire substrate — about 200 lines of stdlib Python, no dependencies, no servers, no LLM keys required.
-
-### 2. The 5-minute MCP server — talk to DONNA from your AI client
-
-If you have Node.js 18+, you can run the MCP server locally and connect any MCP-compatible client (Claude Desktop, Claude Code, Cursor) to it.
-
-```bash
-cd mcp-servers/donna
-npm install
-npm run build
-npm start
-# server listens on http://localhost:3102
-```
-
-Add it to your AI client and you can ask the assistant to use DONNA's tools.
-
-### 3. The full install — voice surface, Python client, AI-client wiring
-
-For the full path — Python client setup, voice mode, microphone configuration, AI-client config files for Claude Desktop and Claude Code, and troubleshooting — read **[`docs/install.md`](docs/install.md)**. It walks through every step in plain language, with the exact commands for macOS, Linux, and Windows, and a troubleshooting table for the four most common install snags.
-
-If you only read one document beyond this README, read that one.
-
-More about DONNA — including the legal context, the licensing model, and the launch story — at **[donnaoss.com](https://donnaoss.com)**.
-
-## How it fits
-
-```
-                     ┌─────────────────────┐
-                     │   Voice / phone /   │
-                     │      browser        │
-                     └──────────┬──────────┘
-                                │
-                                ▼
-              ┌───────────────────────────────────┐
-              │  DONNA voice surface (AGPL-3.0)   │
-              │  STT · intent · skill routing     │
-              └──────────────┬────────────────────┘
-                             │
-                             ▼
-              ┌───────────────────────────────────┐
-              │  Any LLM provider (HAPPI/1.1)     │
-              │  cloud · self-hosted · on-device  │
-              └──────────────┬────────────────────┘
-                             │
-                             ▼
-              ┌───────────────────────────────────┐
-              │  IDR engine (NEXUS tier)          │
-              │  HMAC-SHA256 · chain · export     │
-              └───────────────────────────────────┘
-```
-
-The voice surface and MCP server ship in this repository under AGPL-3.0. The model layer is provider-agnostic via the open [HAPPI/1.1 protocol](https://gist.github.com/architext1/808548dd25cfac5cc47fb6e910b79292) — point it at any compatible vendor or a self-hosted model. The IDR engine is the one part the firm pays for.
+1. **The 60-second demo** — `git clone` + `make demo`. Nothing to install; see
+   the whole pipeline run. (Above.)
+2. **The 5-minute MCP server** — Node.js 18+, then `cd mcp-servers/donna && npm
+   install && npm run build && npm start`. Connect any MCP-compatible client
+   (Claude Desktop, Claude Code, Cursor) and ask it to use DONNA's tools.
+3. **The full install** — Python client, voice mode, microphone, AI-client
+   wiring for macOS, Linux, and Windows: [`docs/install.md`](docs/install.md).
 
 ---
 
-## The wider stack: substrate · router · interface · orchestration · verification
+## Go deeper
 
-DONNA does not stand alone. It is one layer in an open stack designed so that no single piece is load-bearing:
+The long technical and positioning material lives outside this README so the
+README stays readable:
+
+| To understand… | Read |
+|-----------------|------|
+| The architecture and the wider stack (substrate · router · interface · orchestration · verification) | [about.grip-web.com](https://about.grip-web.com) §23 (DONNA), §24 (MIKE), §25 (AGORA) |
+| Where DONNA is going (the five-waypoint journey vector) | [ROADMAP.md](ROADMAP.md) |
+| Worked end-to-end examples | [docs/SCENARIOS.md](docs/SCENARIOS.md) |
+| The open audit-chain protocol | [happi.md v1.1](https://gist.github.com/architext1/808548dd25cfac5cc47fb6e910b79292) |
+| The legal context, licensing model, and launch story | [donnaoss.com](https://donnaoss.com) |
+
+**The wider stack** — no single layer is load-bearing:
 
 | Layer | Project | Role |
 |-------|---------|------|
-| **Substrate** | GRIP | The recursive-self-improvement engine that builds, ships, and verifies the rest of the stack. |
-| **Provider router** | HAL | Routes a single intent across Anthropic, OpenAI, xAI, Gemini, DeepSeek, Qwen, vLLM, Ollama. Provider failure or price change is a config flip. |
-| **Interface** | MCP | Model Context Protocol — the open standard for connecting any AI client to any tool. DONNA ships an MCP server. |
-| **Orchestration** | **DONNA** (this repo) | Decision-oriented delegation for legal practice. Signed IDRs, chained, replayable. |
-| **Verification** | AGORA | Multi-model verification — the same intent is routed to N providers and the agreement score is recorded in the audit chain. No single model decides alone for matters that warrant cross-checking. |
+| Substrate | GRIP | The recursive-self-improvement engine that builds and verifies the stack. |
+| Provider router | HAL | Routes one intent across many providers; a price change or outage is a config flip. |
+| Interface | MCP | The open Model Context Protocol; DONNA ships an MCP server. |
+| Orchestration | **DONNA** (this repo) | Decision-oriented delegation for legal practice. |
+| Verification | AGORA | The same intent goes to N models; the agreement score is recorded in the chain. |
 
-Long-form treatment of each layer — and why the audit chain is the moat while the model is replaceable — is at **[about.grip-web.com](https://about.grip-web.com)** sections §23 (DONNA), §24 (MIKE, the document-layer sibling by Joseph Breda), and §25 (AGORA).
-
-The peer-implementer relationship matters: **MIKE** (Will Chen, Joseph Breda) is the document-layer open project. **DONNA** is the operations-layer open project. They share the open audit-chain protocol ([HAPPI/1.1](https://gist.github.com/architext1/808548dd25cfac5cc47fb6e910b79292)) and are designed to interoperate, not compete.
+**MIKE** (Will Chen; local-LLM path by Joseph Breda) is the document-layer open
+project. DONNA is the operations-layer open project. They share the open
+[HAPPI/1.1 protocol](https://gist.github.com/architext1/808548dd25cfac5cc47fb6e910b79292)
+and are designed to interoperate, not compete.
 
 ---
 
-## Why we made the licensing axes inverted
+## Why now — the legal detail
 
-In 1993 Red Hat made Linux into a business by giving away the bits and selling the *services* around the bits. DONNA inverts the axes: the **service** (voice, transcription, skill routing) is open; the **substrate** (verifiable decision audit chain) is proprietary.
+In November 2025 the UK Upper Tribunal handed down ***Munir v Secretary of State
+for the Home Department* [2026] UKUT 81**. It held that uploading client material
+to a public AI service destroys legal privilege permanently, and explicitly
+distinguished *"closed-source AI tools which do not place information in the
+public domain"* as acceptable. The privilege boundary is now judicial authority,
+not professional-body guidance. ([Source.](https://caselaw.nationalarchives.gov.uk/ukut/iac/2026/81))
 
-The voice surface should be hospitality — a thing the firm can clone, run, modify, and self-host. The audit chain is the substantive guarantee — *DONNA probat*, the verb that names the brand. We sell the proof, we give away the listening.
+That is the structural reason DONNA exists in its current shape: self-hosted,
+audit-chained, and provider-agnostic by construction — so the answer to *"where
+does our client data go?"* is decided by the firm, not by a vendor's roadmap.
 
-This puts the firm in control of two trade-offs separately: privacy (run the voice locally, no data leaves the firm) and verifiability (subscribe to the audit-chain engine when the matter requires regulator-grade provenance).
+---
 
-**OSS for the win.** AGPL-3.0 means the firm can clone this repository, run it on its own hardware, point it at a local model, switch providers at will, and audit every line. The audit chain is the firm's, not ours. When a closed-stack vendor changes pricing, deprecates a connector, or pulls a plugin, the firm running DONNA does not notice. *Vendor risk is replaced by configuration choice.*
+## Status
+
+- **Release:** alpha. `v0.1.0` tag pending public launch.
+- **Voice surface:** scaffolding in `mcp-servers/donna`; STT, skill registry, and
+  intent router are on the [roadmap](ROADMAP.md).
+- **Provider abstraction:** HAPPI/1.1 envelope — any OpenAI-compatible vendor or
+  a self-hosted model.
+- **IDR substrate:** proprietary engine; open protocol reference at
+  [happi.md v1.1](https://gist.github.com/architext1/808548dd25cfac5cc47fb6e910b79292).
+
+See [CHANGELOG.md](CHANGELOG.md) for the running record.
 
 ---
 
@@ -211,45 +202,38 @@ This puts the firm in control of two trade-offs separately: privacy (run the voi
 
 | Project | Author | What |
 |---------|--------|------|
-| [Mike](https://github.com/willchen96/mike) | Will Chen | Open-source legal AI for the document layer (29 April 2026, AGPL-3.0). DONNA is the operations-layer sibling. |
-| [Mike PR #20](https://github.com/willchen96/mike/pull/20) | Joseph Breda | Local-LLM provider via vLLM — the architectural primitive that makes Mike usable inside firms with hard data-residency requirements. |
-| [Omnilex](https://omnilex.ai) | Ismael Seck, Marco Henri | Open Swiss legal-research engine for the DACH region. The knowledge layer of the open legal stack. |
-| [happi.md](https://gist.github.com/architext1/808548dd25cfac5cc47fb6e910b79292) | @architext1 | The open audit-chain protocol DONNA implements — passport for AI agents. |
-| [CloseVector](https://closevector.ai) | Dean Hoffman | On-premises AI document search with cryptographic audit chain (patent pending). Audits retrieval; DONNA audits delegation. Different layers of the same architectural insight. |
-
----
-
-## Status
-
-- **Release:** alpha. `v0.1.0` tag pending public launch.
-- **Voice surface:** scaffolding in `mcp-servers/donna`. STT pipeline, skill registry, intent router on the roadmap.
-- **Provider abstraction:** HAPPI/1.1 envelope — any OpenAI-compatible vendor or self-hosted model.
-- **IDR substrate:** proprietary engine; protocol reference at [happi.md v1.1](https://gist.github.com/architext1/808548dd25cfac5cc47fb6e910b79292).
-
-See [CHANGELOG.md](CHANGELOG.md) for the running record.
+| [Mike](https://github.com/willchen96/mike) | Will Chen | Open-source legal AI for the document layer (AGPL-3.0). DONNA is the operations-layer sibling. |
+| [Mike PR #20](https://github.com/willchen96/mike/pull/20) | Joseph Breda | Local-LLM provider via vLLM — the primitive that makes Mike usable inside firms with hard data-residency requirements. |
+| [Omnilex](https://omnilex.ai) | Ismael Seck, Marco Henri | Open Swiss legal-research engine for the DACH region — the knowledge layer of the open legal stack. |
+| [happi.md](https://gist.github.com/architext1/808548dd25cfac5cc47fb6e910b79292) | @architext1 | The open audit-chain protocol DONNA implements. |
+| [CloseVector](https://closevector.ai) | Dean Hoffman | On-premises AI document search with a cryptographic audit chain (patent pending). It audits retrieval; DONNA audits delegation — the same insight, different layers. |
 
 ---
 
 ## Contributing
 
-Contributions welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for the commit-message format, the PR template, and the AGPL-3.0 contribution model.
+Contributions welcome — see [CONTRIBUTING.md](CONTRIBUTING.md) for the
+commit-message format, the PR template, and the AGPL-3.0 contribution model. The
+shortest path: open an issue describing the problem before writing code; keep PRs
+small and focused against `main`; add tests for new behaviour. We respond within
+72 hours on weekdays. For security issues, follow [SECURITY.md](SECURITY.md) — do
+not open a public issue.
 
-The shortest path: open an issue describing the problem before writing code. Small, focused PRs against `main`. Tests for new behaviour. We respond on a 72-hour SLA during weekdays.
-
-For security issues, please follow [SECURITY.md](SECURITY.md) — do not open a public issue.
-
-## Code of Conduct
-
-This project adopts the [Contributor Covenant 2.1](CODE_OF_CONDUCT.md). Be precise, be kind, and disagree with the argument rather than the person. *Sine ira et studio.*
+This project adopts the [Contributor Covenant 2.1](CODE_OF_CONDUCT.md). Be
+precise, be kind, and disagree with the argument rather than the person.
+*Sine ira et studio.*
 
 ---
 
-## License
+## Licence
 
-The voice surface, MCP server, skill files, and provider adapters in this repository ship under the [GNU Affero General Public License, version 3](LICENSE).
+The voice surface, MCP server, skill files, and provider adapters in this
+repository ship under the [GNU Affero General Public License, version 3](LICENSE).
+The IDR engine — the implementation of the audit chain described in `happi.md` —
+is licensed separately as part of the NEXUS tier. The protocol is open; the
+engine is not.
 
-The IDR engine — the implementation of the audit chain described in `happi.md` — is licensed separately as part of the NEXUS tier. The protocol is open; the engine is not.
-
-DONNA is built by **the DONNA team** at CodeTonight (Cape Town · Zurich) in collaboration with [chiefofstaff.pro](https://chiefofstaff.pro).
+DONNA is built by the DONNA team at CodeTonight (Cape Town · Zurich) in
+collaboration with [chiefofstaff.pro](https://chiefofstaff.pro).
 
 *DONNA probat.*

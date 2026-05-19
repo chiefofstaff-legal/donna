@@ -37,6 +37,24 @@ def _extract_counter_fn() -> str:
     return m.group(0)
 
 
+def _executable_lines(fn: str) -> str:
+    """Strip shell comment lines so static pattern guards scan only the
+    code that actually runs.
+
+    The function's docstring-style comment legitimately *quotes* the
+    forbidden ``\\``` escape to explain why it is dangerous (the 5-day
+    outage post-mortem). Documenting an anti-pattern is not committing
+    it — the regression guard must pin the executable grep, not the
+    educational comment, or it false-positives on its own warning.
+    """
+    out = []
+    for line in fn.splitlines():
+        if line.lstrip().startswith("#"):
+            continue
+        out.append(line)
+    return "\n".join(out)
+
+
 def _run_counter(tmp_path: Path, target: str) -> subprocess.CompletedProcess:
     snippet = tmp_path / "snippet.sh"
     snippet.write_text(
@@ -58,10 +76,13 @@ def test_counter_has_no_gnu_unsafe_escaped_backtick():
     """
     fn = _extract_counter_fn()
     assert "grep" in fn, "counter no longer uses grep — re-review this guard"
-    assert "\\`" not in fn, (
-        "count_idr_entries contains a backslash-escaped backtick. GNU grep "
-        "reads \\` as a zero-width start-of-buffer anchor and matches nothing "
-        "on Linux CI. Use literal unescaped backticks."
+    code = _executable_lines(fn)
+    assert "\\`" not in code, (
+        "count_idr_entries executable code contains a backslash-escaped "
+        "backtick. GNU grep reads \\` as a zero-width start-of-buffer anchor "
+        "and matches nothing on Linux CI. Use literal unescaped backticks. "
+        "(Comments quoting the anti-pattern are exempt — only runnable code "
+        "is scanned.)"
     )
 
 

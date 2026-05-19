@@ -1,0 +1,65 @@
+name: Notarise Integrity Suite
+
+# Runs the root-level notarise audit-chain proof-harness:
+#   tests/test_notarise.py            — public-API coverage of bin/notarise
+#   tests/test_notarise_mutations.py  — in-memory mutation kill-rate proof
+#
+# These suites verify the IDR (Intent Decision Record) signing + hash-chain
+# integrity that DONNA's value proposition rests on. They were previously
+# DEAD in CI: .github/workflows/test.yml only covers client/tests/, so a
+# regression in the integrity harness would go unnoticed. This job is the
+# missing gate. It is intentionally separate from the client test workflow
+# because it is zero-dependency (stdlib + pytest only) and lives at the
+# repo root, not under client/.
+
+on:
+  push:
+    branches: [main, "feat/**"]
+  pull_request:
+    branches: [main]
+
+jobs:
+  notarise:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.12"]
+
+    env:
+      # Test-only HMAC key for the notarise suites. NOT a secret — it is the
+      # same fixed value the local mutmut runner uses (setup.cfg [mutmut]
+      # runner). The real signing key is never present in CI.
+      DONNA_NOTARISE_KEY: test-key-donna-unit-2026-abc123xyz
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install pytest (zero project deps — stdlib only)
+        run: pip install pytest
+
+      - name: Assert notarise suites collect tests (re-death guard)
+        # tests/conftest.py self-heals the gitignored bin/notarise.py alias
+        # at collection time. If that ever breaks, the suites silently
+        # collect zero tests and the integrity proof goes dead again. This
+        # step fails the job if the collected count is not > 0.
+        run: |
+          python -m pytest \
+            tests/test_notarise.py tests/test_notarise_mutations.py \
+            --collect-only -q 2>&1 | tee /tmp/collect.txt
+          COUNT=$(grep -oE '[0-9]+ tests collected' /tmp/collect.txt | grep -oE '^[0-9]+' || echo 0)
+          echo "Collected $COUNT notarise tests"
+          if [ "$COUNT" -le 0 ]; then
+            echo "::error::Notarise suites collected 0 tests — conftest alias self-heal is broken. The integrity proof-harness is DEAD."
+            exit 1
+          fi
+
+      - name: Run notarise integrity suites
+        run: |
+          python -m pytest \
+            tests/test_notarise.py tests/test_notarise_mutations.py \
+            -q --tb=short

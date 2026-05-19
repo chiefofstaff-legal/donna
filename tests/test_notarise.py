@@ -524,6 +524,36 @@ def test_cli_verify_fail_in_stderr(tmp_path, capsys):
     assert "FAIL" in capsys.readouterr().err
 
 
+def test_cli_verify_at_tampered_entry_exit1(tmp_path, capsys):
+    # Integrity-critical fail-closed: --at N on a TAMPERED single entry must
+    # exit 1 (NEVER 0). Covers bin/notarise:215-218 — the single-entry
+    # failure branch. Mutation: `return 1` → `return 0` would silently pass
+    # a tampered record under spot-check, the worst possible false-VERIFIED.
+    chain = _n.demo_chain()
+    chain[1].intent = "TAMPERED — injected after signing"
+    p = tmp_path / "tampered-at.md"
+    _write_chain(p, chain)
+    result = _n.main(["verify", "--chain", str(p), "--at", "2"])
+    err = capsys.readouterr().err
+    assert result == 1, f"tampered --at 2 returned {result}, must fail-closed to 1"
+    assert "FAIL: entry 2" in err
+    # And the OK line for this branch must NOT be emitted.
+    assert "OK:" not in err
+
+
+def test_cli_verify_at_tampered_entry_reports_reason(tmp_path, capsys):
+    # Mutation: failure reason loop dropped (line 216-217) → operator gets
+    # exit 1 with no actionable reason. The signature mismatch must surface.
+    chain = _n.demo_chain()
+    chain[0].signature = "0" * 64
+    p = tmp_path / "badsig-at.md"
+    _write_chain(p, chain)
+    result = _n.main(["verify", "--chain", str(p), "--at", "1"])
+    err = capsys.readouterr().err
+    assert result == 1
+    assert "FAIL: entry 1" in err and "signature" in err
+
+
 # ─── CLI: sign ────────────────────────────────────────────────────────────────
 
 def test_cli_sign_exit0(capsys):

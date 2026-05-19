@@ -44,6 +44,11 @@ coverage.xml
 # Internal launch materials (not for public repo)
 launch/
 
+# Local agent / tooling working state (never belongs in a public repo)
+.claude/
+.cursor/
+.aider*
+
 # mutation testing artefacts
 bin/notarise.py
 mutants/

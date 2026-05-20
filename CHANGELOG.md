@@ -3,6 +3,44 @@
 All notable changes to DONNA are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [Unreleased]
+
+### Added
+
+- **`donna/integrations/clio.py`** — Clio integration adapter scaffold (issue
+  #18). Per-tenant OAuth2 via macOS Keychain (`grip-clio-<tenant_id>`),
+  ~250 LOC of pure-stdlib HTTP, per-mutation IDR emission via a
+  dependency-inverted `DecisionLoggerProtocol`. Pure-read GETs do not chain;
+  POST/PATCH/PUT/DELETE emit exactly one outcome IDR with `context.outcome`
+  ∈ {success, failure, transport_failure, not_configured}. Fail-CLOSED when
+  Keychain entry is absent (degraded-mode IDR + error result, never silent
+  mock success). Council-ratified design — see project memory
+  `project_donna_clio_adapter_council_synthesis_2026-05-20.md`.
+- **`donna/integrations/__init__.py`** — public surface for the integrations
+  sub-package: `ClioConfig`, `ClioResult`, `DecisionLoggerProtocol`, `call`,
+  `load_config`.
+- **`tests/integrations/test_clio.py`** — 17 Goodhart-resistant tests
+  anchoring: per-mutation single-IDR emission, GET emits zero IDRs,
+  fail-CLOSED on degraded mode, dependency-inverted logger contract,
+  retry loop for transient 5xx, parent_decision_id chain-forest linkage,
+  outcome-label partitioning across status codes.
+
+### Tightened (on top of council outline)
+
+- IDR `context.parent_decision_id` — when the orchestrator passes the
+  routing decision id through, the Clio mutation IDR explicitly links back.
+  Chain replay can reconstruct the routing → mutation forest even though
+  each entry is its own `log_decision` call. (Round-3 design tightening
+  documented in project memory `feedback_two_linked_idrs_per_orchestrated_task.md`.)
+
+### Out of scope (tracked separately)
+
+- OAuth refresh-token flow + envelope encryption are follow-up commits
+  within #18 (acceptance sub-tasks, not v1 blockers per council).
+- Bidirectional `donna/export.py` (import + sync) is a separate PR.
+- Real Clio sandbox round-trip ships once V>> provisions a dev access
+  token in macOS Keychain entry `grip-clio-dev`.
+
 ## [0.9.0] — 2026-05-09
 
 Public-launch surface: DONNA backronym, Munir framing, IDR notariser, roadmap, OSS hygiene.

@@ -88,7 +88,7 @@ DONNA routes extracted intents to integrations you configure.
 
 | Integration | Status | What DONNA sends |
 |------------|--------|-----------------|
-| Clio | planned v0.2 | time entry + matter |
+| Clio | scaffold v0.10 (mock-mode) | OAuth2 + REST + per-mutation IDR; needs sandbox token via macOS Keychain entry `grip-clio-<tenant_id>` |
 | Linear | planned v0.2 | task with assignee + deadline |
 | Xero | planned v0.3 | time entry for invoicing |
 | Custom webhook | v0.1 | raw JSON intent — wire it yourself |

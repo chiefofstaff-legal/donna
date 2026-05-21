@@ -41,6 +41,7 @@ import shutil
 import subprocess
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 from dataclasses import dataclass
 from typing import Any, Dict, Optional, Protocol, Tuple
@@ -48,6 +49,22 @@ from typing import Any, Dict, Optional, Protocol, Tuple
 CLIO_API_BASE = os.environ.get("CLIO_API_BASE", "https://eu.app.clio.com/api/v4")
 RETRY_WINDOW_S = 30.0
 _HTTP_TIMEOUT_S = 20.0
+
+
+def _oauth_token_url() -> str:
+    """Derive the OAuth2 ``/oauth/token`` endpoint from ``CLIO_API_BASE``.
+
+    Works for both regions: EU base ``https://eu.app.clio.com/api/v4`` and
+    US base ``https://app.clio.com/api/v4`` both produce the matching
+    ``…/oauth/token``. If a non-standard base is set (no ``/api/v4``
+    segment), falls back to scheme+host + ``/oauth/token``.
+    """
+    if "/api/v4" in CLIO_API_BASE:
+        return CLIO_API_BASE.replace("/api/v4", "/oauth/token")
+    # Non-standard base — derive from scheme+host only.
+    from urllib.parse import urlparse
+    p = urlparse(CLIO_API_BASE)
+    return f"{p.scheme}://{p.netloc}/oauth/token"
 
 
 # ---------------------------------------------------------------------------
@@ -111,37 +128,195 @@ class ClioResult:
 # ---------------------------------------------------------------------------
 
 
-def load_config(tenant_id: str) -> Optional[ClioConfig]:
-    """Resolve Clio config for a tenant. Returns ``None`` if not configured.
+def _kc_read(service: str) -> Optional[str]:
+    """Read a value from the macOS Keychain. Returns ``None`` on any failure.
 
-    Dev path: macOS Keychain entry ``grip-clio-<tenant_id>`` holding the
-    OAuth2 access token. Production (envelope-encrypted per-tenant file) is
-    a follow-up commit on this issue — v1 is Keychain-only.
-
-    Fail-CLOSED: anything that isn't a clean read returns ``None`` so the
-    caller emits the degraded-mode "Clio not configured" IDR rather than
-    fabricating a silent mock-success.
+    Centralised so ``load_config`` + ``refresh_access_token`` share one
+    well-tested code path; tests patch this single function.
     """
     security_bin = shutil.which("security")
     if not security_bin:
-        return None  # Not macOS; production path not in this commit.
-
-    keychain_service = f"grip-clio-{tenant_id}"
+        return None
     try:
         result = subprocess.run(
-            [security_bin, "find-generic-password", "-s", keychain_service, "-w"],
-            capture_output=True,
-            text=True,
-            timeout=5.0,
+            [security_bin, "find-generic-password", "-s", service, "-w"],
+            capture_output=True, text=True, timeout=5.0,
         )
     except (subprocess.TimeoutExpired, OSError):
         return None
     if result.returncode != 0:
         return None
-    access_token = result.stdout.strip()
+    value = result.stdout.strip()
+    return value or None
+
+
+def _kc_write(service: str, value: str) -> bool:
+    """Atomically write/update a Keychain entry. Returns ``True`` on success.
+
+    Uses ``-U`` so existing entries are overwritten in place — this is the
+    atomic-replace semantics that the refresh flow depends on: a successful
+    write means the new tokens are durably persisted before the function
+    returns. ``$USER`` is read from the environment (Keychain account
+    field; non-secret).
+    """
+    security_bin = shutil.which("security")
+    if not security_bin:
+        return False
+    try:
+        result = subprocess.run(
+            [security_bin, "add-generic-password",
+             "-a", os.environ.get("USER", ""),
+             "-s", service, "-w", value, "-U"],
+            capture_output=True, text=True, timeout=5.0,
+        )
+    except (subprocess.TimeoutExpired, OSError):
+        return False
+    return result.returncode == 0
+
+
+def load_config(tenant_id: str) -> Optional[ClioConfig]:
+    """Resolve Clio config for a tenant. Returns ``None`` if not configured.
+
+    Dev path: macOS Keychain triple:
+    - ``grip-clio-<tenant_id>`` — OAuth2 access token (REQUIRED)
+    - ``grip-clio-refresh-<tenant_id>`` — refresh token (optional; enables
+      automatic 401-retry-with-refresh)
+    - ``grip-clio-expires-<tenant_id>`` — ISO-8601 timestamp or Unix epoch
+      string when the access token expires (optional; not load-bearing —
+      reactive 401-retry handles expiry without it)
+
+    Production (envelope-encrypted per-tenant file) is a follow-up commit;
+    v1 is Keychain-only.
+
+    Fail-CLOSED: anything that isn't a clean read returns ``None`` so the
+    caller emits the degraded-mode "Clio not configured" IDR rather than
+    fabricating a silent mock-success.
+    """
+    access_token = _kc_read(f"grip-clio-{tenant_id}")
     if not access_token:
         return None
-    return ClioConfig(tenant_id=tenant_id, access_token=access_token)
+    # Refresh + expiry are best-effort; absence is fine for legacy single-
+    # token tenants and gracefully degrades to no-refresh-on-401.
+    refresh_token = _kc_read(f"grip-clio-refresh-{tenant_id}") or ""
+    expires_raw = _kc_read(f"grip-clio-expires-{tenant_id}") or ""
+    expires_at = 0.0
+    if expires_raw:
+        try:
+            expires_at = float(expires_raw)
+        except ValueError:
+            # Tolerate ISO-8601 strings too.
+            import datetime
+            try:
+                expires_at = datetime.datetime.fromisoformat(
+                    expires_raw.replace("Z", "+00:00")
+                ).timestamp()
+            except ValueError:
+                expires_at = 0.0
+    return ClioConfig(
+        tenant_id=tenant_id,
+        access_token=access_token,
+        refresh_token=refresh_token,
+        expires_at=expires_at,
+    )
+
+
+def _token_grant_post(params: Dict[str, str]) -> Optional[Dict[str, Any]]:
+    """POST to the OAuth ``/oauth/token`` endpoint with the given grant params.
+
+    Returns the parsed JSON payload on HTTP 200, ``None`` on any failure
+    (HTTP error, transport error, non-200, non-JSON). Centralises the
+    refresh + authorization_code grant logic; today only refresh uses it,
+    but the authorization_code grant we ran in-session is a natural
+    second caller when we automate the initial token flow.
+    """
+    body = urllib.parse.urlencode(params).encode("utf-8")
+    request = urllib.request.Request(
+        _oauth_token_url(), data=body, method="POST",
+        headers={"Content-Type": "application/x-www-form-urlencoded",
+                 "Accept": "application/json"},
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=_HTTP_TIMEOUT_S) as resp:
+            raw = resp.read().decode("utf-8", errors="replace")
+            status = resp.getcode() or 0
+    except (urllib.error.HTTPError, urllib.error.URLError, OSError):
+        return None
+    if status != 200:
+        return None
+    try:
+        return json.loads(raw)
+    except json.JSONDecodeError:
+        return None
+
+
+def _stash_refreshed_tokens(
+    tenant_id: str, payload: Dict[str, Any], prev_refresh: str
+) -> Optional[ClioConfig]:
+    """Atomic-replace the per-tenant tokens after a successful refresh grant.
+
+    Order matters: access first, then refresh, then expiry. A partial
+    failure mid-stash returns ``None`` — the caller falls through to the
+    fail-CLOSED 401 path. The OLD refresh_token remains valid in Keychain
+    until the new one writes successfully (Clio honours the previous
+    refresh_token for a short window per OAuth2 BCP).
+    """
+    new_access = payload.get("access_token", "")
+    new_refresh = payload.get("refresh_token", "")
+    expires_in = payload.get("expires_in", 0)
+    if not new_access:
+        return None
+    if not _kc_write(f"grip-clio-{tenant_id}", new_access):
+        return None
+    if new_refresh and not _kc_write(f"grip-clio-refresh-{tenant_id}", new_refresh):
+        return None
+    new_expires_at = time.time() + float(expires_in) if expires_in else 0.0
+    if new_expires_at:
+        _kc_write(f"grip-clio-expires-{tenant_id}", str(new_expires_at))
+    return ClioConfig(
+        tenant_id=tenant_id,
+        access_token=new_access,
+        refresh_token=new_refresh or prev_refresh,
+        expires_at=new_expires_at,
+    )
+
+
+def refresh_access_token(tenant_id: str) -> Optional[ClioConfig]:
+    """Exchange the stored refresh_token for a fresh access_token (+ new
+    refresh_token, since Clio rotates refresh tokens on every grant).
+
+    Reads client_id + client_secret from Keychain entries
+    ``grip-clio-app-id`` and ``grip-clio-app-secret`` (the OAuth2 app
+    credentials, NOT the per-tenant access token). Secrets stay inside
+    this Python process scope — never become shell env vars or argv.
+
+    Atomic-replace via ``_stash_refreshed_tokens``: on success, BOTH
+    ``grip-clio-<tenant_id>`` AND ``grip-clio-refresh-<tenant_id>`` are
+    updated before this function returns. ``grip-clio-expires-<tenant_id>``
+    is set to ``now + expires_in`` so future ``load_config`` reads see
+    the new expiry.
+
+    Fail-CLOSED: any failure (no refresh_token, no app creds, HTTP error,
+    invalid_grant, partial Keychain write) returns ``None``. Caller
+    surfaces this as a 401 + the existing degraded-mode IDR path.
+    ``invalid_grant`` specifically means the refresh_token chain is broken
+    — operator must re-authorise.
+    """
+    cfg = load_config(tenant_id)
+    if cfg is None or not cfg.refresh_token:
+        return None
+    client_id = _kc_read("grip-clio-app-id")
+    client_secret = _kc_read("grip-clio-app-secret")
+    if not client_id or not client_secret:
+        return None
+    payload = _token_grant_post({
+        "grant_type": "refresh_token",
+        "client_id": client_id,
+        "client_secret": client_secret,
+        "refresh_token": cfg.refresh_token,
+    })
+    if payload is None:
+        return None
+    return _stash_refreshed_tokens(tenant_id, payload, cfg.refresh_token)
 
 
 # ---------------------------------------------------------------------------
@@ -338,6 +513,13 @@ def call(
         return ClioResult(ok=False, status=0, body={"error": "not_configured"}, decision_id=decision_id)
 
     status, body_out = _http_with_retry(method, path, cfg, body)
+    # Reactive 401-retry: if Clio rejected the access_token AND we have a
+    # refresh_token, exchange it for a new access_token and retry the
+    # request ONCE. A second 401 falls through to the existing fail path.
+    if status == 401 and cfg.refresh_token:
+        new_cfg = refresh_access_token(tenant_id)
+        if new_cfg is not None:
+            status, body_out = _http_with_retry(method, path, new_cfg, body)
     ok, _ = _classify_outcome(status)
 
     decision_id: Optional[str] = None

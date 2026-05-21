@@ -1,0 +1,55 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "donna"
+version = "0.1.0"
+description = "DONNA — Decision-Oriented Network Notarisation for Attorneys"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "AGPL-3.0-or-later" }
+authors = [
+  { name = "ENTER Konsult" },
+]
+keywords = ["legal", "delegation", "audit-chain", "idr", "oauth"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "License :: OSI Approved :: GNU Affero General Public License v3 or later (AGPLv3+)",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14",
+  "Topic :: Office/Business :: Legal",
+]
+dependencies = [
+  # EncryptedFileStore in donna.secrets uses cryptography.fernet for symmetric
+  # encryption of the secrets file. Lazy-imported, but a real runtime dep wherever
+  # the prod Linux/Docker store is selected.
+  "cryptography>=42.0.0",
+]
+
+[project.optional-dependencies]
+# Voice-surface extras — required only if you use the voice/audio pipeline.
+voice = [
+  "sounddevice>=0.4.6",
+  "webrtcvad>=2.0.10",
+  "numpy>=1.24.0",
+  "openai>=1.40.0",
+  "python-dotenv>=1.0.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/chiefofstaff-legal/donna"
+
+[tool.setuptools.packages.find]
+where = ["client"]
+include = ["donna*"]
+
+# NOTE: deliberately NO [tool.pytest.ini_options] block — that would conflict
+# with the existing conftest.py-driven discovery in client/tests/ and the
+# top-level tests/ directory used by mutmut on bin/notarise.py (see setup.cfg).
+# Tests continue to be invoked exactly as before: `pytest <path>` from the
+# repo root or `client/` working dir.

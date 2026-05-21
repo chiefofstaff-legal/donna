@@ -37,14 +37,16 @@ from __future__ import annotations
 
 import json
 import os
-import shutil
-import subprocess
+import shutil  # noqa: F401 — retained so tests can patch clio.shutil.which
+import subprocess  # noqa: F401 — retained so tests can patch clio.subprocess.run
 import time
 import urllib.error
 import urllib.parse
 import urllib.request
 from dataclasses import dataclass
 from typing import Any, Dict, Optional, Protocol, Tuple
+
+from donna.secrets import select_store
 
 CLIO_API_BASE = os.environ.get("CLIO_API_BASE", "https://eu.app.clio.com/api/v4")
 RETRY_WINDOW_S = 30.0
@@ -129,49 +131,43 @@ class ClioResult:
 
 
 def _kc_read(service: str) -> Optional[str]:
-    """Read a value from the macOS Keychain. Returns ``None`` on any failure.
+    """Read a secret value via the configured store backend. Returns ``None`` on failure.
 
-    Centralised so ``load_config`` + ``refresh_access_token`` share one
-    well-tested code path; tests patch this single function.
+    Despite the legacy ``_kc_`` name (kept so existing tests that patch
+    ``clio._kc_read`` continue to intercept), this dispatches to
+    ``donna.secrets.select_store()``: ``KeychainStore`` on macOS, otherwise
+    ``EncryptedFileStore`` (when ``DONNA_SECRETS_KEY`` is configured) or
+    ``EnvVarStore`` (read-only fallback). Centralised so ``load_config`` +
+    ``refresh_access_token`` share one well-tested code path.
+
+    Tests can patch ``clio._kc_read`` directly OR set ``DONNA_SECRET_STORE``
+    to pick a backend explicitly.
     """
-    security_bin = shutil.which("security")
-    if not security_bin:
-        return None
-    try:
-        result = subprocess.run(
-            [security_bin, "find-generic-password", "-s", service, "-w"],
-            capture_output=True, text=True, timeout=5.0,
-        )
-    except (subprocess.TimeoutExpired, OSError):
-        return None
-    if result.returncode != 0:
-        return None
-    value = result.stdout.strip()
-    return value or None
+    return select_store().read(service)
 
 
 def _kc_write(service: str, value: str) -> bool:
-    """Atomically write/update a Keychain entry. Returns ``True`` on success.
+    """Atomically write/update a secret via the configured store backend.
 
-    Uses ``-U`` so existing entries are overwritten in place — this is the
-    atomic-replace semantics that the refresh flow depends on: a successful
-    write means the new tokens are durably persisted before the function
-    returns. ``$USER`` is read from the environment (Keychain account
-    field; non-secret).
+    Despite the legacy ``_kc_`` name (kept so existing tests that patch
+    ``clio._kc_write`` continue to intercept), this dispatches to
+    ``select_store()``. Returns ``True`` on success.
+
+    Atomic-replace semantics are preserved by each writeable backend:
+    ``KeychainStore`` uses ``security ... -U``; ``EncryptedFileStore`` uses
+    a tempfile + ``os.rename``; ``MemoryStore`` is dict-assignment-under-lock.
+    A successful write means the new value is durably persisted before this
+    function returns — the OAuth refresh flow depends on this.
+
+    If the configured backend is read-only (``EnvVarStore``), returns
+    ``False`` — refresh-token rotation cannot persist through a Reader-only
+    store, and the caller falls through to the fail-CLOSED 401 path.
     """
-    security_bin = shutil.which("security")
-    if not security_bin:
+    store = select_store()
+    write_fn = getattr(store, "write", None)
+    if write_fn is None:
         return False
-    try:
-        result = subprocess.run(
-            [security_bin, "add-generic-password",
-             "-a", os.environ.get("USER", ""),
-             "-s", service, "-w", value, "-U"],
-            capture_output=True, text=True, timeout=5.0,
-        )
-    except (subprocess.TimeoutExpired, OSError):
-        return False
-    return result.returncode == 0
+    return bool(write_fn(service, value))
 
 
 def load_config(tenant_id: str) -> Optional[ClioConfig]:

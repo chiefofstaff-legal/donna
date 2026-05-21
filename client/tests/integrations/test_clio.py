@@ -297,3 +297,234 @@ def test_decision_logger_protocol_method_signature() -> None:
         step_id="s",
         context={"k": "v"},
     )
+
+
+# ---------------------------------------------------------------------------
+# OAuth2 refresh-token path (chiefofstaff-legal/donna#TBD follow-up to #21)
+# ---------------------------------------------------------------------------
+
+
+class TestOauthTokenURL:
+    """Token-grant endpoint derivation — must work for both regions."""
+
+    def test_eu_base_derives_eu_token_url(self, monkeypatch):
+        """EU API base must derive EU /oauth/token. Mutation: replace
+        ``/api/v4`` with ``/oauth/token`` — if regex changes break this, fail."""
+        monkeypatch.setattr(clio, "CLIO_API_BASE", "https://eu.app.clio.com/api/v4")
+        assert clio._oauth_token_url() == "https://eu.app.clio.com/oauth/token"
+
+    def test_us_base_derives_us_token_url(self, monkeypatch):
+        monkeypatch.setattr(clio, "CLIO_API_BASE", "https://app.clio.com/api/v4")
+        assert clio._oauth_token_url() == "https://app.clio.com/oauth/token"
+
+    def test_non_standard_base_falls_back_to_host(self, monkeypatch):
+        """A non-standard base (no ``/api/v4``) must still produce a token URL
+        rather than a malformed path — falls back to scheme+host."""
+        monkeypatch.setattr(clio, "CLIO_API_BASE", "https://custom.clio.example.com/special")
+        url = clio._oauth_token_url()
+        assert url.endswith("/oauth/token")
+        assert "custom.clio.example.com" in url
+
+
+class TestLoadConfigRefreshFields:
+    """``load_config`` must populate refresh_token + expires_at when the
+    sibling Keychain entries exist; gracefully absent otherwise."""
+
+    def test_load_config_reads_all_three_keychain_entries(self, monkeypatch):
+        def _kc(service):
+            return {
+                "grip-clio-acme": "ACCESS-XYZ",
+                "grip-clio-refresh-acme": "REFRESH-ABC",
+                "grip-clio-expires-acme": "1748999999.0",
+            }.get(service)
+        monkeypatch.setattr(clio, "_kc_read", _kc)
+        cfg = clio.load_config("acme")
+        assert cfg is not None
+        assert cfg.access_token == "ACCESS-XYZ"
+        assert cfg.refresh_token == "REFRESH-ABC"
+        assert cfg.expires_at == 1748999999.0
+
+    def test_load_config_tolerates_missing_refresh_and_expires(self, monkeypatch):
+        """Legacy single-token tenants (no refresh sibling) MUST keep working —
+        load_config returns ClioConfig with empty refresh and zero expiry."""
+        def _kc(service):
+            return "ACCESS-ONLY" if service == "grip-clio-legacy" else None
+        monkeypatch.setattr(clio, "_kc_read", _kc)
+        cfg = clio.load_config("legacy")
+        assert cfg is not None
+        assert cfg.access_token == "ACCESS-ONLY"
+        assert cfg.refresh_token == ""
+        assert cfg.expires_at == 0.0
+
+
+class TestRefreshAccessToken:
+    """Refresh-grant flow — atomic Keychain replace + fail-CLOSED semantics."""
+
+    def _kc_for_refresh(self, monkeypatch, writes_capture):
+        """Patch _kc_read + _kc_write for a tenant 'acme' with refresh + app creds."""
+        kc_state = {
+            "grip-clio-acme": "OLD-ACCESS",
+            "grip-clio-refresh-acme": "OLD-REFRESH",
+            "grip-clio-expires-acme": "0",
+            "grip-clio-app-id": "APP-ID-123",
+            "grip-clio-app-secret": "APP-SECRET-456",
+        }
+
+        def _read(service):
+            return kc_state.get(service)
+
+        def _write(service, value):
+            kc_state[service] = value
+            writes_capture.append((service, value))
+            return True
+
+        monkeypatch.setattr(clio, "_kc_read", _read)
+        monkeypatch.setattr(clio, "_kc_write", _write)
+        return kc_state
+
+    def test_refresh_rotates_both_tokens_in_keychain(self, monkeypatch):
+        """A successful refresh MUST write the new access_token AND the new
+        refresh_token back to Keychain — Clio rotates refresh on every grant."""
+        writes = []
+        kc_state = self._kc_for_refresh(monkeypatch, writes)
+        monkeypatch.setattr(
+            clio, "_token_grant_post",
+            lambda _params: {"access_token": "NEW-ACCESS",
+                             "refresh_token": "NEW-REFRESH", "expires_in": 3600},
+        )
+        new_cfg = clio.refresh_access_token("acme")
+        assert new_cfg is not None
+        assert new_cfg.access_token == "NEW-ACCESS"
+        assert new_cfg.refresh_token == "NEW-REFRESH"
+        # Both rotations must hit Keychain.
+        services = {s for s, _ in writes}
+        assert "grip-clio-acme" in services
+        assert "grip-clio-refresh-acme" in services
+        # And the in-memory keychain state must reflect the rotation.
+        assert kc_state["grip-clio-acme"] == "NEW-ACCESS"
+        assert kc_state["grip-clio-refresh-acme"] == "NEW-REFRESH"
+
+    def test_refresh_failure_returns_none_no_keychain_writes(self, monkeypatch):
+        """Refresh failure (invalid_grant / HTTP error) MUST be fail-CLOSED —
+        return None, no Keychain writes, OLD refresh_token stays valid."""
+        writes = []
+        self._kc_for_refresh(monkeypatch, writes)
+        monkeypatch.setattr(clio, "_token_grant_post", lambda _params: None)
+        result = clio.refresh_access_token("acme")
+        assert result is None
+        assert writes == [], f"refresh failure must not write keychain, got {writes}"
+
+    def test_refresh_without_refresh_token_returns_none(self, monkeypatch):
+        """If the tenant has no stored refresh_token, refresh MUST refuse —
+        cannot fabricate a grant from nothing. Fail-CLOSED."""
+        def _read(service):
+            return "ACCESS-ONLY" if service == "grip-clio-tenant-no-refresh" else None
+        monkeypatch.setattr(clio, "_kc_read", _read)
+        # If somehow called, _token_grant_post would fail this assertion.
+        monkeypatch.setattr(
+            clio, "_token_grant_post",
+            lambda _params: pytest.fail("refresh must not call grant without refresh_token"),
+        )
+        assert clio.refresh_access_token("tenant-no-refresh") is None
+
+
+class TestCallRetriesOn401AfterRefresh:
+    """The user-visible payoff — ``call()`` transparently refreshes on 401
+    and retries the original request once."""
+
+    def test_call_retries_on_401_with_new_token(self, monkeypatch):
+        """Mutation hits 401 → refresh succeeds → retry succeeds → caller sees
+        the eventual 2xx without ever seeing the 401. Mutation anchor: rip
+        the 401-retry branch out of call() and this fails."""
+        # First call returns 401, second returns 201.
+        http_calls = []
+
+        def _fake_http(method, path, cfg, body=None):
+            http_calls.append(cfg.access_token)
+            if len(http_calls) == 1:
+                return 401, {"error": "expired_token"}
+            return 201, {"data": {"id": 999}}
+
+        monkeypatch.setattr(clio, "_http_with_retry", _fake_http)
+        # load_config returns config WITH refresh_token (else retry is skipped).
+        monkeypatch.setattr(
+            clio, "load_config",
+            lambda _t: ClioConfig(
+                tenant_id="acme", access_token="OLD-ACCESS",
+                refresh_token="OLD-REFRESH", expires_at=0.0,
+            ),
+        )
+        # refresh_access_token returns a new ClioConfig (so retry uses the new token).
+        monkeypatch.setattr(
+            clio, "refresh_access_token",
+            lambda _t: ClioConfig(
+                tenant_id="acme", access_token="NEW-ACCESS",
+                refresh_token="NEW-REFRESH", expires_at=99999.0,
+            ),
+        )
+        result = call(
+            tenant_id="acme", method="POST", path="/activities.json",
+            body={"data": {}}, logger=_logger(),
+        )
+        # Caller sees the eventual 201, never sees the 401.
+        assert result.ok is True
+        assert result.status == 201
+        # Two HTTP calls happened: one with old token (got 401), one with new.
+        assert len(http_calls) == 2
+        assert http_calls[0] == "OLD-ACCESS"
+        assert http_calls[1] == "NEW-ACCESS"
+
+    def test_401_with_no_refresh_token_does_not_retry(self, monkeypatch):
+        """Legacy tenants (no refresh_token) MUST NOT attempt refresh — the
+        401 propagates as-is so the caller surfaces a degraded result."""
+        monkeypatch.setattr(
+            clio, "load_config",
+            lambda _t: ClioConfig(tenant_id="acme", access_token="A",
+                                  refresh_token="", expires_at=0.0),
+        )
+        call_count = {"n": 0}
+
+        def _fake_http(*_a, **_k):
+            call_count["n"] += 1
+            return 401, {"error": "expired_token"}
+
+        monkeypatch.setattr(clio, "_http_with_retry", _fake_http)
+
+        def _fail_refresh(_t):
+            pytest.fail("refresh_access_token MUST NOT be called without refresh_token")
+        monkeypatch.setattr(clio, "refresh_access_token", _fail_refresh)
+
+        result = call(
+            tenant_id="acme", method="POST", path="/activities.json",
+            body={"data": {}}, logger=_logger(),
+        )
+        assert result.ok is False
+        assert result.status == 401
+        assert call_count["n"] == 1  # No retry attempted.
+
+    def test_401_with_failed_refresh_propagates_401(self, monkeypatch):
+        """Refresh that returns None (invalid_grant) — original 401 propagates,
+        no second HTTP call. Operator must re-authorise."""
+        monkeypatch.setattr(
+            clio, "load_config",
+            lambda _t: ClioConfig(tenant_id="acme", access_token="A",
+                                  refresh_token="R", expires_at=0.0),
+        )
+        monkeypatch.setattr(clio, "refresh_access_token", lambda _t: None)
+        call_count = {"n": 0}
+
+        def _fake_http(*_a, **_k):
+            call_count["n"] += 1
+            return 401, {"error": "expired_token"}
+
+        monkeypatch.setattr(clio, "_http_with_retry", _fake_http)
+
+        result = call(
+            tenant_id="acme", method="POST", path="/activities.json",
+            body={"data": {}}, logger=_logger(),
+        )
+        assert result.ok is False
+        assert result.status == 401
+        # Refresh was attempted, but the retry path was skipped because refresh
+        # returned None. So only one HTTP call.
+        assert call_count["n"] == 1

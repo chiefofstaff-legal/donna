@@ -36,6 +36,7 @@ the macOS Keychain entry ``grip-clio-<tenant_id>``.
 from __future__ import annotations
 
 import json
+import os
 import shutil
 import subprocess
 import time
@@ -44,7 +45,7 @@ import urllib.request
 from dataclasses import dataclass
 from typing import Any, Dict, Optional, Protocol, Tuple
 
-CLIO_API_BASE = "https://app.clio.com/api/v4"
+CLIO_API_BASE = os.environ.get("CLIO_API_BASE", "https://eu.app.clio.com/api/v4")
 RETRY_WINDOW_S = 30.0
 _HTTP_TIMEOUT_S = 20.0
 

@@ -136,3 +136,43 @@ test("HARDCODED_SIGNER is the exact council-ratified literal", () => {
   // Mutation: relaxing the signer to accept user input would change this
   // constant or remove its use in the endpoint.
 });
+
+test("pushEntry: 10 concurrent pushes all become verifiable chain entries (race-lock guard)", async () => {
+  storage._resetForTests();
+  // Simulate 10 concurrent POSTs hitting pushEntry simultaneously.
+  // Without the chain-tail lock, read-modify-write races silently drop
+  // entries and break the chain's previous_hash invariant (grip-anywhere
+  // §6d). Use distinct IPs to avoid the per-IP cap firing.
+  const promises = [];
+  for (let i = 0; i < 10; i++) {
+    const hash = ("d" + i.toString(16)).padEnd(64, "0");
+    const ip = `10.4.0.${i}`;
+    promises.push(storage.pushEntry(
+      { hash, intent: `concurrent ${i}`, ts: "2026-05-24T00:00:00Z" },
+      ip
+    ));
+  }
+  await Promise.all(promises);
+  const chain = await storage.listChain();
+  assert.strictEqual(chain.length, 10, `all 10 concurrent pushes should land; got ${chain.length}`);
+  const uniqueHashes = new Set(chain.map((e) => e.hash));
+  assert.strictEqual(uniqueHashes.size, 10, `expected 10 unique hashes; got ${uniqueHashes.size} (race lost an entry)`);
+  // Mutation that would fail this: removing acquireChainLock / try-finally /
+  // releaseChainLock wrapping in pushEntry → concurrent read-modify-write
+  // race; entries overwrite each other; some hashes missing from chain.
+});
+
+test("piiDeny: IBAN regex terminates under 50ms on adversarial input (ReDoS guard)", () => {
+  // Per grip-anywhere P1-B: the previous IBAN regex
+  // /\b[A-Z]{2}\d{2}[ -]?(?:[A-Z0-9][ -]?){11,30}\b/ is catastrophic-
+  // backtracking-prone. Fixed shape flattens the alternation to
+  // /\b[A-Z]{2}\d{2}[A-Z0-9 -]{11,30}\b/ which is linear-time.
+  const adversarial = "DE89 " + "1 ".repeat(500) + "x";
+  const start = Date.now();
+  storage.piiDeny(adversarial);
+  const elapsed = Date.now() - start;
+  assert.ok(elapsed < 50, `IBAN regex should terminate <50ms; took ${elapsed}ms (ReDoS regression)`);
+  // Mutation that would fail this: reintroducing the
+  // /\b[A-Z]{2}\d{2}[ -]?(?:[A-Z0-9][ -]?){11,30}\b/ catastrophic-backtracking
+  // shape, OR any other regex with an `(a+)+`-class signature on the IBAN rule.
+});

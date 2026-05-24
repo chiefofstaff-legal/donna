@@ -62,7 +62,7 @@ const WORD_BLOCKLIST = Object.freeze([
 // asserts each return value by exact rule name.
 const PII_RULES = Object.freeze([
   { name: "ssn",         re: /\b\d{3}-\d{2}-\d{4}\b/,                       reason: "looks like a US SSN" },
-  { name: "iban",        re: /\b[A-Z]{2}\d{2}[ -]?(?:[A-Z0-9][ -]?){11,30}\b/,reason: "looks like an IBAN" },
+  { name: "iban",        re: /\b[A-Z]{2}\d{2}[A-Z0-9 -]{11,30}\b/,             reason: "looks like an IBAN" },
   { name: "credit_card", re: /\b(?:\d[ -]*?){13,16}\b/,                      reason: "looks like a credit card number" },
 ]);
 
@@ -146,12 +146,52 @@ async function checkRateLimit(ip, opts) {
   return { allowed: count <= max, remaining: Math.max(0, max - count), count };
 }
 
-// ─── Defence layer 4: per-IP entry cap (max 5 in visible chain) ──────
+// ─── Defence layer 4: chain-tail mutex (grip-anywhere §6d race fix) ──
+// Concurrent pushEntry() calls race: two callers read the same chain tail,
+// both append, only one survives the writeChain — the other entry is
+// silently lost AND the chain's previous_hash invariant breaks for ALL
+// subsequent entries (chain VERIFY fails forever after). The fix: lock
+// the read-modify-write critical section.
+//   - KV backend: SET-NX with 5s EX (Upstash atomic; auto-expires on crash)
+//   - in-memory:  key-with-expiry parity (single-process Node; await-yield
+//                 lets the spinner notice the lock without busy-loop)
+// 5s TTL keeps stale locks bounded if a writer crashes mid-transaction.
+async function acquireChainLock() {
+  const lockKey = "widget:chain-lock";
+  const lockTtlSec = 5;
+  const spinIntervalMs = 30;
+  const deadline = Date.now() + lockTtlSec * 1000;
+  while (Date.now() < deadline) {
+    if (kvConfigured()) {
+      const result = await kvCall(["SET", lockKey, "1", "NX", "EX", lockTtlSec]);
+      if (result === "OK") return true;
+    } else {
+      const now = Date.now();
+      const rec = memoryStore.get(lockKey);
+      if (!rec || rec.expiresAt <= now) {
+        memoryStore.set(lockKey, { value: 1, expiresAt: now + lockTtlSec * 1000 });
+        return true;
+      }
+    }
+    await new Promise((r) => setTimeout(r, spinIntervalMs));
+  }
+  return false;
+}
+
+async function releaseChainLock() {
+  const lockKey = "widget:chain-lock";
+  if (kvConfigured()) await kvCall(["DEL", lockKey]);
+  else memoryStore.delete(lockKey);
+}
+
+// ─── Defence layer 5: per-IP entry cap (max 5 in visible chain) ──────
 // FIFO push that ALSO enforces per-IP cap. Returns the new chain length
 // AND the position of the just-pushed entry. Eviction order:
 //   1. Per-IP overflow first (remove the same IP's oldest entry)
 //   2. Global overflow next (remove the chain's oldest entry across all IPs)
 // This guarantees one push = one entry visible, never two pushes coalescing.
+// Wrapped in chain-tail lock (Defence layer 4 above) so concurrent calls
+// serialise — required for chain verify integrity per grip-anywhere §6d.
 async function pushEntry(entry, ip) {
   if (!entry || typeof entry !== "object") throw new Error("entry_invalid");
   if (typeof entry.hash !== "string" || !/^[0-9a-f]{64}$/.test(entry.hash)) {
@@ -159,25 +199,32 @@ async function pushEntry(entry, ip) {
   }
   const stamped = Object.assign({}, entry, { ip: ip || "", _ts: Date.now() });
 
-  // Read current chain
-  let chain = await readChain();
+  const lockOk = await acquireChainLock();
+  if (!lockOk) throw new Error("chain_lock_timeout");
 
-  // Per-IP cap: if this IP already has MAX_PER_IP_IN_CHAIN, drop oldest from that IP
-  if (ip) {
-    const sameIp = chain.filter((e) => e.ip === ip);
-    if (sameIp.length >= MAX_PER_IP_IN_CHAIN) {
-      const oldestSameIp = sameIp[0]; // chain is oldest→newest
-      chain = chain.filter((e) => e !== oldestSameIp);
+  try {
+    // Read current chain (under lock — no concurrent writer can race us)
+    let chain = await readChain();
+
+    // Per-IP cap: if this IP already has MAX_PER_IP_IN_CHAIN, drop oldest from that IP
+    if (ip) {
+      const sameIp = chain.filter((e) => e.ip === ip);
+      if (sameIp.length >= MAX_PER_IP_IN_CHAIN) {
+        const oldestSameIp = sameIp[0]; // chain is oldest→newest
+        chain = chain.filter((e) => e !== oldestSameIp);
+      }
     }
+
+    // Global FIFO cap: if at MAX_CHAIN_LEN, drop oldest overall
+    while (chain.length >= MAX_CHAIN_LEN) chain.shift();
+
+    // Append new + write (atomic under lock — no concurrent reader sees half-state)
+    chain.push(stamped);
+    await writeChain(chain);
+    return { length: chain.length, position: chain.length };
+  } finally {
+    await releaseChainLock();
   }
-
-  // Global FIFO cap: if at MAX_CHAIN_LEN, drop oldest overall
-  while (chain.length >= MAX_CHAIN_LEN) chain.shift();
-
-  // Append new
-  chain.push(stamped);
-  await writeChain(chain);
-  return { length: chain.length, position: chain.length };
 }
 
 async function readChain() {

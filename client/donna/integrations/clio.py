@@ -524,3 +524,262 @@ def call(
             logger, method, path, status, tenant_id, ritual_id, step_id, parent_decision_id
         )
     return ClioResult(ok=ok, status=status, body=body_out, decision_id=decision_id)
+
+
+# ---------------------------------------------------------------------------
+# D4(d) — OAuth2 grant orchestration with IDR-on-grant
+# ---------------------------------------------------------------------------
+#
+# Lifts the W3 nexus pattern (intent IDR → token-grant POST → outcome IDR)
+# into the substrate so a single source of truth emits OAuth grant IDRs.
+# Nexus follow-up PR rewrites ``routes_clio.oauth_callback`` to call
+# ``grant_oauth_tokens`` directly — at which point the in-app duplication
+# of `_token_grant_post + _persist_oauth_tokens` is dead code.
+#
+# Council R8 (defensive): every IDR emitter below carries Goodhart-resistant
+# tests that fail if intent is renamed, outcome is mis-mapped, or the
+# predecessor chain breaks (see ``tests/test_clio_grant.py``).
+
+
+# Public alias so consumers can import the documented name without the
+# leading underscore. Per Council R5 / PLAN §2.4: the underscore-prefixed
+# form is kept indefinitely for nexus and any downstream consumer already
+# importing it; the public ``token_grant_post`` is the documented entry
+# point going forward.
+token_grant_post = _token_grant_post
+
+
+# Canonical IDR intent labels — replay tooling filters on these exact
+# strings, so they are mutation-anchored constants (test_clio_grant.py
+# fails if either is renamed).
+OAUTH_GRANT_INTENT_INTENT = "oauth_grant_intent"
+OAUTH_GRANT_OUTCOME_INTENT = "oauth_grant_outcome"
+
+
+def _emit_oauth_grant_idr(
+    logger: DecisionLoggerProtocol,
+    *,
+    tenant_id: str,
+    grant_type: str,
+    phase: str,  # "intent" | "outcome"
+    outcome: str,  # "intent" | "success" | "failure"
+    status_hint: int = 0,
+    ritual_id: str = "oauth",
+    step_id: str = "oauth_grant",
+    parent_decision_id: Optional[str] = None,
+) -> Optional[str]:
+    """Emit one IDR for an OAuth2 grant — intent (pre-POST) OR outcome (post-POST).
+
+    Called twice per ``grant_oauth_tokens`` invocation: once with
+    ``phase="intent"`` before the network call (records "we are about to
+    request a token"), once with ``phase="outcome"`` after (records
+    success / failure). Both IDRs chain via ``parent_decision_id``: the
+    outcome IDR's parent is the intent IDR, giving the audit chain a
+    paired before/after entry per grant attempt.
+
+    Args:
+        logger: Caller's :class:`DecisionLoggerProtocol` instance.
+        tenant_id: Per-tenant scoping.
+        grant_type: ``"authorization_code"`` or ``"refresh_token"`` (RFC 6749 §4).
+        phase: ``"intent"`` (pre-POST) or ``"outcome"`` (post-POST).
+        outcome: ``"intent"`` for the pre-call IDR; ``"success"`` /
+            ``"failure"`` for the post-call IDR.
+        status_hint: HTTP status from the grant POST (only meaningful when
+            ``phase="outcome"``); 0 for the intent phase.
+        ritual_id / step_id: IDR association labels.
+        parent_decision_id: Predecessor decision (the orchestrator's
+            routing decision for the intent IDR; the intent IDR's
+            ``decision_id`` for the outcome IDR).
+
+    Returns:
+        The ``decision_id`` from ``logger.log_decision`` (the caller threads
+        the intent IDR's id into the outcome IDR as its parent).
+    """
+    intent_label = (
+        OAUTH_GRANT_INTENT_INTENT if phase == "intent" else OAUTH_GRANT_OUTCOME_INTENT
+    )
+    context: Dict[str, Any] = {
+        "tenant_id": tenant_id,
+        "intent": intent_label,
+        "grant_type": grant_type,
+        "phase": phase,
+        "outcome": outcome,
+        "status": status_hint,
+    }
+    if parent_decision_id:
+        context["parent_decision_id"] = parent_decision_id
+    confidence = 1.0 if outcome in ("intent", "success") else 0.0
+    why_str = f"OAuth2 {grant_type} grant {phase}"
+    if phase == "outcome":
+        why_str += f" status={status_hint}"
+    what_str = f"{intent_label}:tenant={tenant_id}:grant={grant_type}"
+    # NOTE on kwarg order: deliberately distinct from `_emit_mutation_idr` /
+    # `_emit_not_configured_idr` to keep each emitter a single semantically
+    # cohesive call site. The Protocol contract permits any order; this site
+    # is structured (context first, then routing fields) so per-intent
+    # emitters remain individually inspectable rather than collapsing into a
+    # shared helper that hides the per-emitter intent / confidence / context
+    # construction in indirection.
+    return logger.log_decision(
+        context=context,
+        what=what_str,
+        why=why_str,
+        confidence=confidence,
+        ritual_id=ritual_id,
+        step_id=step_id,
+    )
+
+
+def grant_oauth_tokens(
+    tenant_id: str,
+    *,
+    grant_type: str,
+    code: Optional[str] = None,
+    refresh_token: Optional[str] = None,
+    client_id: Optional[str] = None,
+    client_secret: Optional[str] = None,
+    redirect_uri: Optional[str] = None,
+    logger: Optional[DecisionLoggerProtocol] = None,
+    parent_decision_id: Optional[str] = None,
+    ritual_id: str = "oauth",
+    step_id: str = "oauth_grant",
+) -> Tuple[Optional[Dict[str, Any]], Optional[str]]:
+    """Orchestrate an OAuth2 grant: intent IDR → POST → outcome IDR.
+
+    Single public coordinator for both grant flows Clio supports:
+
+    * ``grant_type="authorization_code"`` — initial token exchange. Requires
+      ``code`` (from the OAuth callback), ``client_id``, ``client_secret``,
+      and typically ``redirect_uri``. The application layer (nexus's
+      ``routes_clio.oauth_callback``) becomes a thin caller after this PR.
+    * ``grant_type="refresh_token"`` — token refresh. Requires
+      ``refresh_token``, ``client_id``, ``client_secret``. Internal callers
+      (donna's :func:`refresh_access_token`) may opt in to this orchestrator
+      in a follow-up commit; for now it ships as net-new public surface.
+
+    Emits TWO IDRs per call when ``logger`` is provided:
+
+    * Intent IDR (pre-POST) — records that a grant attempt is starting.
+      Chains to ``parent_decision_id`` if the caller passed one (typically
+      the routing decision that produced the grant request).
+    * Outcome IDR (post-POST) — records ``success`` (HTTP 200 + parsed
+      payload) OR ``failure`` (non-200 / transport error / non-JSON).
+      Chains to the intent IDR's ``decision_id``.
+
+    Returns:
+        ``(payload, outcome_decision_id)``. ``payload`` is ``None`` on
+        failure; on success it is the parsed JSON dict from Clio's
+        ``/oauth/token`` response. ``outcome_decision_id`` is the IDR id
+        from the outcome IDR (or ``None`` when ``logger`` is ``None``).
+
+    Per Council R3: required grant params enumerated explicitly. Other
+    flows (e.g. PKCE) are out of scope until a real caller appears (YAGNI
+    + N=2 per ``rules/knowledge-maturation-functor.md``).
+
+    Per Council R5: this substrate addition is self-contained — the nexus
+    follow-up PR replaces its inline ``_token_grant_post + persist`` flow
+    with a single call to ``grant_oauth_tokens`` + ``_stash_refreshed_tokens``.
+
+    Fail-CLOSED: any defect (missing required field for the grant type, HTTP
+    error, non-JSON response, non-200 status) returns ``(None, decision_id)``.
+    The outcome IDR is STILL emitted on failure — a chain hole on failed
+    grants would defeat the forensic value the chain exists to provide.
+    """
+    # Intent IDR — record the attempt BEFORE network I/O.
+    intent_id: Optional[str] = None
+    if logger is not None:
+        intent_id = _emit_oauth_grant_idr(
+            logger,
+            tenant_id=tenant_id,
+            grant_type=grant_type,
+            phase="intent",
+            outcome="intent",
+            status_hint=0,
+            ritual_id=ritual_id,
+            step_id=step_id,
+            parent_decision_id=parent_decision_id,
+        )
+
+    # Build the grant params per grant_type. Missing required params fail
+    # CLOSED (returns None payload + emits a failure outcome IDR).
+    params: Dict[str, str] = {"grant_type": grant_type}
+    if client_id:
+        params["client_id"] = client_id
+    if client_secret:
+        params["client_secret"] = client_secret
+    if grant_type == "authorization_code":
+        if not code:
+            return _grant_outcome(logger, tenant_id, grant_type, 0, intent_id,
+                                  ritual_id, step_id, payload=None)
+        params["code"] = code
+        if redirect_uri:
+            params["redirect_uri"] = redirect_uri
+    elif grant_type == "refresh_token":
+        if not refresh_token:
+            return _grant_outcome(logger, tenant_id, grant_type, 0, intent_id,
+                                  ritual_id, step_id, payload=None)
+        params["refresh_token"] = refresh_token
+    else:
+        # Unknown grant_type — fail-CLOSED.
+        return _grant_outcome(logger, tenant_id, grant_type, 0, intent_id,
+                              ritual_id, step_id, payload=None)
+
+    payload = _token_grant_post(params)
+    # _token_grant_post returns dict on HTTP 200 + valid JSON; None otherwise.
+    # We hint status=200 on success, 0 on failure — the underlying error class
+    # (HTTP error vs JSON decode vs non-200) is preserved in the audit-chain
+    # via the outcome=failure label even when the precise status is opaque.
+    status_hint = 200 if payload is not None else 0
+    return _grant_outcome(logger, tenant_id, grant_type, status_hint, intent_id,
+                          ritual_id, step_id, payload=payload)
+
+
+def _grant_outcome(
+    logger: Optional[DecisionLoggerProtocol],
+    tenant_id: str,
+    grant_type: str,
+    status_hint: int,
+    intent_id: Optional[str],
+    ritual_id: str,
+    step_id: str,
+    *,
+    payload: Optional[Dict[str, Any]],
+) -> Tuple[Optional[Dict[str, Any]], Optional[str]]:
+    """Emit the outcome IDR and return (payload, outcome_decision_id).
+
+    Extracted helper so ``grant_oauth_tokens`` keeps a low cyclomatic
+    complexity number — each early-return path in the orchestrator funnels
+    through one outcome-IDR emission point (DRY + KISS).
+    """
+    outcome_label = "success" if payload is not None else "failure"
+    outcome_id: Optional[str] = None
+    if logger is not None:
+        outcome_id = _emit_oauth_grant_idr(
+            logger,
+            tenant_id=tenant_id,
+            grant_type=grant_type,
+            phase="outcome",
+            outcome=outcome_label,
+            status_hint=status_hint,
+            ritual_id=ritual_id,
+            step_id=step_id,
+            parent_decision_id=intent_id,
+        )
+    return payload, outcome_id
+
+
+__all__ = [
+    # Existing public surface — preserved byte-for-byte
+    "CLIO_API_BASE",
+    "ClioConfig",
+    "ClioResult",
+    "DecisionLoggerProtocol",
+    "call",
+    "load_config",
+    "refresh_access_token",
+    # D4(d) additions — NEW public surface
+    "OAUTH_GRANT_INTENT_INTENT",
+    "OAUTH_GRANT_OUTCOME_INTENT",
+    "grant_oauth_tokens",
+    "token_grant_post",
+]

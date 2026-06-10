@@ -22,6 +22,7 @@ name: Probat (extend chain on merge)
 on:
   push:
     branches: [main]
+  workflow_dispatch:
 
 concurrency:
   group: probat-extend
@@ -98,6 +99,11 @@ jobs:
           echo "::warning::direct push declined by branch rules — opening chore(probat) PR (set DONNA_BOT_TOKEN for instant mode)"
           cat /tmp/push-err.txt
           git push -f origin HEAD:refs/heads/probat/extend
+          # The branch push above is the durable artefact: a standing
+          # probat/extend PR auto-refreshes from it. PR creation is
+          # best-effort because org policy may forbid Actions creating PRs
+          # ("GitHub Actions is not permitted to create or approve pull
+          # requests") — that must not fail the run.
           if gh pr create --base main --head probat/extend \
             --title "chore(probat): extend audit chain" \
             --body "Automated audit-chain extension (probat-extend workflow, donna#38). One IDR per un-notarised main commit, signed with the published demo key, chain verified before commit. Merge to land the records; the next run heals any gap either way." \
@@ -106,7 +112,5 @@ jobs:
           elif grep -qi "already exists" /tmp/pr-err.txt; then
             echo "chore(probat) PR already open — branch refreshed"
           else
-            echo "::error::PR fallback failed"
-            cat /tmp/pr-err.txt
-            exit 1
+            echo "::warning::could not open the PR ($(head -c 200 /tmp/pr-err.txt)) — records are pushed on probat/extend; open: https://github.com/${{ github.repository }}/compare/main...probat/extend"
           fi

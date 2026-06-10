@@ -1,0 +1,112 @@
+name: Probat (extend chain on merge)
+
+# chiefofstaff-legal/donna#38 — every merge to main appends one signed IDR to
+# PROBAT.md, so the repository's audit chain grows as a property, not a
+# milestone. Catch-up semantics: scripts/probat_extend.py notarises every
+# un-recorded first-parent main commit, so a missed or raced run heals on the
+# next one.
+#
+# Recursion guards (both directions):
+#   - job-level if: skips runs triggered by chore(probat) commits
+#   - probat_extend.py skips chore(probat) subjects and probat/extend merges
+#   - GITHUB_TOKEN pushes never re-trigger workflows (GitHub built-in)
+#
+# Landing ladder:
+#   rung 1 — direct push to main. Works when DONNA_BOT_TOKEN (a
+#            rule-bypassing PAT) is configured; the default GITHUB_TOKEN is
+#            declined by the main-protect ruleset's pull_request rule.
+#   rung 2 — open/refresh a chore(probat) PR on the probat/extend branch for
+#            a maintainer to merge. The chain stays correct either way; the
+#            next run recomputes from whatever actually landed.
+
+on:
+  push:
+    branches: [main]
+
+concurrency:
+  group: probat-extend
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  pull-requests: write
+
+env:
+  DONNA_NOTARISE_KEY: donna-public-demo-key-2026-05-08
+
+jobs:
+  extend:
+    name: Append IDR for merged commit
+    if: >
+      github.repository == 'chiefofstaff-legal/donna' &&
+      !startsWith(github.event.head_commit.message, 'chore(probat)')
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.DONNA_BOT_TOKEN || github.token }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Extend the chain (catch-up)
+        run: python3 scripts/probat_extend.py --chain PROBAT.md --repo-dir .
+
+      - name: Verify the grown chain
+        run: python3 bin/notarise verify --chain PROBAT.md
+
+      - name: Land the append (direct push, PR fallback)
+        env:
+          GH_TOKEN: ${{ secrets.DONNA_BOT_TOKEN || github.token }}
+        run: |
+          if git diff --quiet -- PROBAT.md; then
+            echo "chain already current — nothing to land"
+            exit 0
+          fi
+          git config user.name "donna-probat"
+          git config user.email "probat@donnaoss.com"
+
+          land() {
+            git add PROBAT.md
+            git commit -m "chore(probat): notarise $(git log -1 --format=%h origin/main) [chain extend]"
+          }
+          land
+
+          for attempt in 1 2 3; do
+            if git push origin HEAD:main 2>/tmp/push-err.txt; then
+              echo "chain extended directly on main (attempt ${attempt})"
+              exit 0
+            fi
+            if grep -qiE "protected branch|pull request|rule violations|GH006|GH013" /tmp/push-err.txt; then
+              break
+            fi
+            echo "::notice::push raced (attempt ${attempt}) — recomputing on fresh main..."
+            git fetch origin main
+            git reset --hard origin/main
+            python3 scripts/probat_extend.py --chain PROBAT.md --repo-dir .
+            python3 bin/notarise verify --chain PROBAT.md
+            if git diff --quiet -- PROBAT.md; then
+              echo "raced run already notarised everything — nothing to land"
+              exit 0
+            fi
+            land
+          done
+
+          echo "::warning::direct push declined by branch rules — opening chore(probat) PR (set DONNA_BOT_TOKEN for instant mode)"
+          cat /tmp/push-err.txt
+          git push -f origin HEAD:refs/heads/probat/extend
+          if gh pr create --base main --head probat/extend \
+            --title "chore(probat): extend audit chain" \
+            --body "Automated audit-chain extension (probat-extend workflow, donna#38). One IDR per un-notarised main commit, signed with the published demo key, chain verified before commit. Merge to land the records; the next run heals any gap either way." \
+            2>/tmp/pr-err.txt; then
+            echo "chore(probat) PR opened"
+          elif grep -qi "already exists" /tmp/pr-err.txt; then
+            echo "chore(probat) PR already open — branch refreshed"
+          else
+            echo "::error::PR fallback failed"
+            cat /tmp/pr-err.txt
+            exit 1
+          fi

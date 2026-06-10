@@ -40,6 +40,12 @@ voice = [
   "openai>=1.40.0",
   "python-dotenv>=1.0.0",
 ]
+# Document-ingest extra — local, confidentiality-first PDF/document parsing.
+# liteparse is Rust+PDFium via PyO3: parses in-process, no cloud. Required only
+# if you use donna.doc_ingest (Scenario 3, "drop a PDF").
+ingest = [
+  "liteparse>=2.0.7",
+]
 
 [project.urls]
 Homepage = "https://github.com/chiefofstaff-legal/donna"

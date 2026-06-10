@@ -91,6 +91,25 @@ The first three entries are the project's bootstrap. They are signed with the pu
 }
 ```
 
+### Entry 4 · merge: fix(probat): non-fatal PR fallback + workflow_dispatch trigger
+
+```idr
+{
+  "confidence": 1.0,
+  "decision_id": "idr_1781120339122563650",
+  "intent": "merge: fix(probat): non-fatal PR fallback + workflow_dispatch trigger",
+  "metadata": {
+    "author": "LaurieScheepers",
+    "commit_sha": "1e4a1f1559c8ce820266a19f289484dc06f4dfd4"
+  },
+  "previous_hash": "90720fafcc350454963159fb906067dcc287684eb8fe8e38b3ebceb6f7a6a47b",
+  "protocol": "happi/1.1",
+  "signature": "48fb3ec134be9522cf7311353703122935da16141102488032db08419a2ed361",
+  "signer": "github-actions",
+  "timestamp": "2026-06-10T19:38:59Z"
+}
+```
+
 ---
 
 ## Why this file exists

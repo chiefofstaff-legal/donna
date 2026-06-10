@@ -150,6 +150,10 @@ def parse_probat(path: str) -> List[IDR]:
         text = open(path, "r", encoding="utf-8").read()
     except FileNotFoundError:
         raise ValueError(f"chain file not found: {path}")
+    return parse_probat_text(text)
+
+
+def parse_probat_text(text: str) -> List[IDR]:
     out: List[IDR] = []
     in_block = False
     buf: List[str] = []
@@ -176,6 +180,79 @@ def parse_probat(path: str) -> List[IDR]:
     if in_block:
         raise ValueError(f"unclosed ```idr block starting at line {block_start}")
     return out
+
+
+# ─── Append (grow the chain in place) ────────────────────────────────
+def _insert_after_last_block(text: str, rendered_block: str) -> str:
+    """Insert a rendered record block immediately after the last ```idr fence.
+
+    Keeps records contiguous in the chain section and the appendices intact.
+    Raises if the file has no existing block — append requires a genesis
+    (bootstrapping an empty chain is `demo`'s job, deliberately not append's).
+    """
+    lines = text.splitlines(keepends=True)
+    in_block = False
+    last_close: Optional[int] = None
+    for i, line in enumerate(lines):
+        stripped = line.strip()
+        if stripped.startswith("```idr"):
+            in_block = True
+        elif in_block and stripped.startswith("```"):
+            in_block = False
+            last_close = i
+    if last_close is None:
+        raise ValueError("no existing ```idr block found — append requires a genesis record")
+    insert_at = last_close + 1
+    return "".join(lines[:insert_at]) + "\n" + rendered_block + "".join(lines[insert_at:])
+
+
+def append_to_chain(
+    chain_path: str,
+    intent: str,
+    signer: str,
+    confidence: float,
+    metadata: Optional[dict] = None,
+    heading: Optional[str] = None,
+) -> IDR:
+    """Append one signed IDR to the chain file, atomically.
+
+    Reads the chain, links previous_hash to the current tail, signs, verifies
+    the WHOLE grown chain in memory, and only then writes (tmp + os.replace).
+    Returns the new record. Raises ValueError on any verification failure —
+    the file is never left in a broken state.
+    """
+    records = parse_probat(chain_path)
+    prev = records[-1].hash() if records else GENESIS_PREVIOUS_HASH
+    rec = IDR(
+        decision_id=f"idr_{time.time_ns()}",
+        timestamp=time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        protocol=PROTOCOL_VERSION,
+        intent=intent,
+        signer=signer,
+        confidence=confidence,
+        previous_hash=prev,
+        metadata=metadata or {},
+    )
+    rec = sign(rec)
+    title = heading or intent
+    if len(title) > 72:
+        title = title[:69] + "..."
+    block = (
+        f"### Entry {len(records) + 1} · {title}\n\n"
+        "```idr\n"
+        f"{json.dumps(asdict(rec), indent=2, sort_keys=True)}\n"
+        "```\n"
+    )
+    text = open(chain_path, "r", encoding="utf-8").read()
+    new_text = _insert_after_last_block(text, block)
+    failures = verify_chain(parse_probat_text(new_text))
+    if failures:
+        raise ValueError(f"grown chain failed verification, not writing: {failures[0]}")
+    tmp_path = chain_path + ".tmp"
+    with open(tmp_path, "w", encoding="utf-8") as fh:
+        fh.write(new_text)
+    os.replace(tmp_path, chain_path)
+    return rec
 
 
 # ─── CLI ─────────────────────────────────────────────────────────────
@@ -227,6 +304,23 @@ def cmd_verify(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_append(args: argparse.Namespace) -> int:
+    try:
+        rec = append_to_chain(
+            chain_path=args.chain,
+            intent=args.intent,
+            signer=args.signer,
+            confidence=args.confidence,
+            metadata=json.loads(args.metadata) if args.metadata else {},
+            heading=args.heading,
+        )
+    except (ValueError, json.JSONDecodeError) as exc:
+        sys.stderr.write(f"error: {exc}\n")
+        return 1
+    sys.stderr.write(f"appended: {rec.decision_id} hash {rec.hash()[:12]}…\n")
+    return 0
+
+
 def cmd_demo(_: argparse.Namespace) -> int:
     chain = demo_chain()
     for rec in chain:
@@ -259,6 +353,15 @@ def main(argv: Optional[List[str]] = None) -> int:
     p_verify.add_argument("--chain", required=True)
     p_verify.add_argument("--at", type=int, default=None, help="Verify only entry N (1-indexed)")
     p_verify.set_defaults(func=cmd_verify)
+
+    p_append = sub.add_parser("append", help="Append one signed IDR to a chain file (atomic, verify-before-write).")
+    p_append.add_argument("--chain", required=True)
+    p_append.add_argument("--intent", required=True)
+    p_append.add_argument("--signer", default="donna-bot")
+    p_append.add_argument("--confidence", type=float, default=1.0)
+    p_append.add_argument("--metadata", default=None, help="JSON object string")
+    p_append.add_argument("--heading", default=None, help="Entry heading (defaults to intent)")
+    p_append.set_defaults(func=cmd_append)
 
     p_demo = sub.add_parser("demo", help="Emit a 3-entry sample chain.")
     p_demo.set_defaults(func=cmd_demo)

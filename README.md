@@ -82,10 +82,10 @@ DONNA is an acronym. Each letter carries a load:
 | **N** | Notarisation | Every decision is signed and chained to the one before it, like a notary's stamp on each page of a logbook. The chain cannot be quietly altered; it replays for audit and for any partner who needs proof. (HMAC-SHA256 + `previous_hash` — see [`PROBAT.md`](PROBAT.md).) |
 | **A** | (for) Attorneys | The legal vertical, exactly. Attorneys are both the audience DONNA serves and the practitioners who shape what it becomes. We defer to experienced lawyers on what is missing. |
 
-**The repository proves it on itself.** Every commit on `main` adds an IDR to
-[`PROBAT.md`](PROBAT.md). The chain notarises its own history — verify any entry
-with the command above. *DONNA probat* is not a slogan; it is a runtime invariant
-of this repo.
+**The repository proves it on itself.** Every merge to `main` appends a signed
+IDR to [`PROBAT.md`](PROBAT.md) via the `probat-extend` CI workflow. The chain
+notarises its own history — verify any entry with the command above. *DONNA
+probat* is not a slogan; it is a runtime invariant of this repo.
 
 ---
 

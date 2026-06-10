@@ -32,7 +32,7 @@ If `bin/notarise verify` exits 0, the chain is intact. If it exits 1, the chain 
 
 ## The chain (genesis → main HEAD)
 
-The first three entries are the project's bootstrap. They are signed with the published demo key and verify locally with `bin/notarise verify --chain PROBAT.md`. The CI workflow that extends the chain on every commit to `main` is the next milestone — a placeholder is reserved at `.github/workflows/probat.yml`; until that is shipped, contributors regenerate the chain locally per the appendix below.
+The first three entries are the project's bootstrap. They are signed with the published demo key and verify locally with `bin/notarise verify --chain PROBAT.md`. From entry 4 onward the chain grows automatically: the `probat-extend` CI workflow appends one signed IDR per merge to `main` (`scripts/probat_extend.py`, catch-up semantics — a raced or missed run is healed by the next one, so no merge is silently skipped), and `probat.yml` verifies the grown chain on every push.
 
 ### Entry 1 · Genesis — repository bootstrap
 

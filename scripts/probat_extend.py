@@ -23,10 +23,22 @@ import sys
 from pathlib import Path
 from typing import List, Optional, Tuple
 
+# bin/notarise is an extensionless executable — a plain `import` cannot see
+# it (the notarise.py symlink some checkouts carry is test scaffolding, not
+# tracked), so load it explicitly. Registered in sys.modules so the driver
+# and any test importing `notarise` share one module instance.
 _BIN = Path(__file__).resolve().parent.parent / "bin"
-if str(_BIN) not in sys.path:
-    sys.path.insert(0, str(_BIN))
-import notarise  # noqa: E402  (bin/notarise.py symlink makes this importable)
+if "notarise" in sys.modules:
+    notarise = sys.modules["notarise"]
+else:
+    from importlib.machinery import SourceFileLoader
+    from importlib.util import module_from_spec, spec_from_loader
+
+    _loader = SourceFileLoader("notarise", str(_BIN / "notarise"))
+    _spec = spec_from_loader("notarise", _loader)
+    notarise = module_from_spec(_spec)
+    sys.modules["notarise"] = notarise
+    _loader.exec_module(notarise)
 
 # Never notarise the notarisation itself (PR-fallback convergence guard).
 SKIP_SUBJECT = re.compile(r"^chore\(probat\)|probat/extend")

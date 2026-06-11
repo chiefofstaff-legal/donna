@@ -110,8 +110,14 @@ warrants it). [Why we built the licence axes this way →](https://about.grip-we
 
 ### First reference implementation
 
-The running MVP at **[free.donnaoss.com](https://free.donnaoss.com)** is
-open-sourced at **[chiefofstaff-legal/nexus](https://github.com/chiefofstaff-legal/nexus)**
+**See it in three minutes, no sign-up:** the walkthrough at
+**[donnaoss.com/demo](https://donnaoss.com/demo)** follows a senior lawyer's
+morning through a downloadable document packet — six matter artefacts plus the
+IDR audit log they trace to (8 delegated decisions, HMAC-SHA256 signed,
+`previous_hash` chained, replayable).
+
+The hosted MVP at **[free.donnaoss.com](https://free.donnaoss.com)** (sign-in
+required) is open-sourced at **[chiefofstaff-legal/nexus](https://github.com/chiefofstaff-legal/nexus)**
 under AGPL-3.0. It implements the HAPPI/1.1 protocol from this repository
 end-to-end — a `PROBAT.md` chain emitted by nexus verifies byte-for-byte with
 `bin/notarise verify --chain` from this repo. The hosted deployment adds a small

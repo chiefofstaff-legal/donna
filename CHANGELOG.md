@@ -7,6 +7,26 @@ All notable changes to DONNA are documented here. Format follows
 
 ### Added
 
+- **`donna/integrations/clio.py`** — OAuth2 authorize leg (D5):
+  `oauth_authorize_url()` derives the user-agent `/oauth/authorize` endpoint
+  from `CLIO_API_BASE` (EU/US/non-standard bases, mirroring the token-URL
+  derivation via a shared `_oauth_endpoint_url` helper), and
+  `build_authorize_redirect(client_id=, redirect_uri=, state=)` composes the
+  full authorization_code redirect URL (`response_type=code` added; all
+  caller params passed through verbatim, urlencoded). Pure string
+  construction — no network I/O, no secret reads. Consumers mint their own
+  CSRF `state` and exchange the returned code via `grant_oauth_tokens`.
+- **`tests/test_clio_authorize.py`** — mutation-anchored tests for the
+  authorize leg: exact-URL region derivations, param completeness,
+  verbatim state passthrough, keyword-only signature, export surface.
+
+### Changed
+
+- **Package version `0.1.0` → `0.2.0`** — consumers pinning donna via a git
+  URL upgrade on a plain `pip install -r requirements.txt` (name+version
+  change defeats pip's installed-requirement short-circuit, which kept
+  stale shas installed under `0.1.0`).
+
 - **`donna/integrations/clio.py`** — Clio integration adapter scaffold (issue
   #18). Per-tenant OAuth2 via macOS Keychain (`grip-clio-<tenant_id>`),
   ~250 LOC of pure-stdlib HTTP, per-mutation IDR emission via a

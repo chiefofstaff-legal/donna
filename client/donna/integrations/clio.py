@@ -53,20 +53,53 @@ RETRY_WINDOW_S = 30.0
 _HTTP_TIMEOUT_S = 20.0
 
 
-def _oauth_token_url() -> str:
-    """Derive the OAuth2 ``/oauth/token`` endpoint from ``CLIO_API_BASE``.
+def _oauth_endpoint_url(leaf: str) -> str:
+    """Derive an OAuth2 endpoint (``/oauth/<leaf>``) from ``CLIO_API_BASE``.
 
     Works for both regions: EU base ``https://eu.app.clio.com/api/v4`` and
     US base ``https://app.clio.com/api/v4`` both produce the matching
-    ``…/oauth/token``. If a non-standard base is set (no ``/api/v4``
-    segment), falls back to scheme+host + ``/oauth/token``.
+    ``…/oauth/<leaf>``. If a non-standard base is set (no ``/api/v4``
+    segment), falls back to scheme+host + ``/oauth/<leaf>``.
     """
     if "/api/v4" in CLIO_API_BASE:
-        return CLIO_API_BASE.replace("/api/v4", "/oauth/token")
+        return CLIO_API_BASE.replace("/api/v4", f"/oauth/{leaf}")
     # Non-standard base — derive from scheme+host only.
     from urllib.parse import urlparse
     p = urlparse(CLIO_API_BASE)
-    return f"{p.scheme}://{p.netloc}/oauth/token"
+    return f"{p.scheme}://{p.netloc}/oauth/{leaf}"
+
+
+def _oauth_token_url() -> str:
+    """Derive the OAuth2 ``/oauth/token`` endpoint from ``CLIO_API_BASE``."""
+    return _oauth_endpoint_url("token")
+
+
+def oauth_authorize_url() -> str:
+    """Derive the OAuth2 ``/oauth/authorize`` endpoint from ``CLIO_API_BASE``.
+
+    The user-agent-facing sibling of :func:`_oauth_token_url` — consumers
+    redirect the operator's browser here to start the authorization_code
+    flow, then exchange the returned code via :func:`grant_oauth_tokens`.
+    """
+    return _oauth_endpoint_url("authorize")
+
+
+def build_authorize_redirect(*, client_id: str, redirect_uri: str, state: str) -> str:
+    """Build the full user-agent redirect URL for the authorization_code flow.
+
+    The consumer mints ``state`` (CSRF binding, RFC 6749 §10.12), registers
+    ``redirect_uri`` with Clio, and 302-redirects the operator's browser to
+    the returned URL. All three params pass through verbatim (urlencoded);
+    this helper adds only ``response_type=code``. Pure string construction —
+    no network I/O, no secret reads.
+    """
+    params = urllib.parse.urlencode({
+        "response_type": "code",
+        "client_id": client_id,
+        "redirect_uri": redirect_uri,
+        "state": state,
+    })
+    return f"{oauth_authorize_url()}?{params}"
 
 
 # ---------------------------------------------------------------------------
@@ -782,4 +815,7 @@ __all__ = [
     "OAUTH_GRANT_OUTCOME_INTENT",
     "grant_oauth_tokens",
     "token_grant_post",
+    # D5 additions — OAuth authorize leg (consumer-side initiation)
+    "build_authorize_redirect",
+    "oauth_authorize_url",
 ]

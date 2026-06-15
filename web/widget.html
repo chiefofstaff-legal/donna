@@ -1,0 +1,569 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>DONNA — Paste it. Sign it. Verify it.</title>
+<meta name="description" content="Paste any sentence. Watch it become a tamper-evident record on a live chain. Re-check it from any terminal. No signup. Real cryptography." />
+<meta name="robots" content="index, follow" />
+<meta property="og:title" content="DONNA — Live cryptographic notarisation in your browser" />
+<meta property="og:description" content="Paste any sentence. Watch it become a tamper-evident record. Re-check it from any terminal." />
+<meta property="og:image:alt" content="DONNA — Decision-Oriented Network Notarisation for Attorneys" />
+<meta property="og:type" content="website" />
+<link rel="stylesheet" href="/css/forensic.css" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Serif:wght@300;400;500&display=swap" />
+<style>
+  /* widget-specific layout deltas — DRY: only what forensic.css doesn't cover */
+  .hero { padding-block: clamp(1rem, 3vw, 2rem) 1.25rem; }
+  .hero .verbs { font-family: var(--mono); font-size: 0.78rem; color: var(--muted);
+                 letter-spacing: 0.16em; text-transform: uppercase; margin-bottom: 0.5rem; }
+  .chain-status { font-family: var(--mono); font-size: 0.8rem; color: var(--ink-soft);
+                  margin-bottom: 0.75rem; padding-bottom: 0.5rem; border-bottom: 1px dashed var(--rule); }
+  .chain-status strong { color: var(--accent-2); font-weight: 500; }
+  .counter { font-family: var(--mono); font-size: 0.72rem; color: var(--muted);
+             margin-top: -0.5rem; margin-bottom: 1rem; text-align: right; }
+  .counter.over { color: var(--invalid); }
+  .actions-row { display: flex; flex-wrap: wrap; gap: 0.6rem; margin-top: 0.75rem; }
+  .verify-status { display: inline-flex; align-items: center; gap: 0.4rem; font-family: var(--mono);
+                   font-size: 0.78rem; color: var(--muted); padding: 0.55rem 0.9rem; }
+  .verify-status[data-state="ok"] { color: var(--valid); }
+  .verify-status[data-state="bad"] { color: var(--invalid); }
+  .share-line { display: none; margin-top: 0.75rem; padding: 0.75rem; background: var(--paper-2);
+                border: 1px solid var(--rule); border-radius: 6px; font-family: var(--mono);
+                font-size: 0.78rem; color: var(--ink-soft); word-break: break-all; }
+  .share-line.show { display: block; }
+  .share-line .lbl { display: block; color: var(--muted); font-size: 0.7rem;
+                     text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 0.25rem; }
+  details.terminal-expander { margin-top: 1rem; border: 1px solid var(--rule); border-radius: 6px;
+                              padding: 0.75rem 1rem; background: var(--paper-2); }
+  details.terminal-expander summary { font-family: var(--mono); font-size: 0.78rem;
+                                      color: var(--accent-2); cursor: pointer; list-style: none;
+                                      min-height: 32px; display: inline-flex; align-items: center; }
+  details.terminal-expander summary::before { content: "▸ "; margin-right: 0.25rem; }
+  details.terminal-expander[open] summary::before { content: "▾ "; }
+  details.terminal-expander pre { margin-top: 0.75rem; padding: 0.75rem;
+                                  background: var(--cover-bg); color: var(--cover-fg);
+                                  border-radius: 4px; font-family: var(--mono); font-size: 0.72rem;
+                                  overflow-x: auto; white-space: pre-wrap; word-break: break-all; }
+  .explainer { font-family: var(--mono); font-size: 0.78rem; color: var(--muted);
+               margin-top: 1rem; padding: 0.75rem; border-left: 3px solid var(--rule);
+               line-height: 1.5; }
+  .err-msg { display: none; font-family: var(--mono); font-size: 0.78rem; color: var(--invalid);
+             margin-top: 0.5rem; padding: 0.5rem 0.75rem; border-left: 3px solid var(--invalid);
+             background: rgba(181,62,21,0.06); }
+  .err-msg.show { display: block; }
+  .chain-entry.new { animation: slide-in 400ms ease-out; }
+  @keyframes slide-in {
+    from { opacity: 0; transform: translateY(-8px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  /* Stripe-style mono type-out: characters reveal sequentially via .typed/.untyped */
+  .typeout .typed { color: var(--accent-2); }
+  .typeout .untyped { color: var(--rule); }
+</style>
+</head>
+<body>
+
+<div class="shell">
+
+  <header class="topnav">
+    <div class="brand"><a href="/">DONNA · Notarisation Substrate</a></div>
+    <nav>
+      <a href="/">Home</a>
+      <a href="/widget" aria-current="page">Live Widget</a>
+      <a href="/demo/audit-chain.html">Audit Chain</a>
+      <a href="https://github.com/CodeTonight-SA/donna" rel="noopener">GitHub</a>
+    </nav>
+  </header>
+
+  <section class="hero">
+    <div class="verbs">paste · notarise · re-check</div>
+    <h1>Paste any sentence. Watch it become a tamper-evident record. Re-check it from any terminal.</h1>
+    <!-- RESHAPE: copy made factual for session-private; V>>+Craig to finalise voice -->
+    <h2 class="subh1">No signup. Real HMAC-SHA256 signatures. The chain you append to is your private session chain — ephemeral, expires in 24h.</h2>
+    <p class="hero-disclaimer">"Cryptographic notarisation" here means <strong>tamper-evidence</strong> — a hash chain you can re-check. It is <strong>not</strong> legal or notarial notarisation, not a third-party digital signature, and not legal advice.</p>
+    <div class="chain-status" id="chainStatus">Loading the live chain…</div>
+  </section>
+
+  <main class="split">
+
+    <!-- LEFT PANE — paste + sign -->
+    <section class="pane" aria-labelledby="paste-h">
+      <h3 id="paste-h">Notarise a decision</h3>
+
+      <div class="warn" role="note">
+        <strong>This is a public demo.</strong> Do NOT paste confidential client data, real names,
+        account numbers, or PII. Entries are visible to anyone who shares the chain URL.
+      </div>
+
+      <div class="chip-row" role="group" aria-label="Try an example">
+        <span class="chip-label">Try:</span>
+        <button class="chip" type="button" data-example="legal">Try a settlement decision</button>
+        <button class="chip" type="button" data-example="technical">Try a software change record</button>
+        <button class="chip" type="button" data-example="policy">Try a policy update</button>
+      </div>
+
+      <label for="intent">Decision intent (max 500 chars)</label>
+      <textarea id="intent" maxlength="500" placeholder="Paste or write the decision you want to notarise."></textarea>
+      <div class="counter" id="counter">0 / 500</div>
+
+      <div class="actions-row">
+        <button class="btn btn-primary" type="button" id="notariseBtn">Notarise</button>
+        <span class="verify-status" id="notariseStatus" aria-live="polite"></span>
+      </div>
+      <div class="err-msg" id="errMsg" role="alert"></div>
+
+      <div class="notarised-result" id="myResult" aria-live="polite">
+        <div><span class="lbl">Position:</span> <span class="val" id="myPos"></span></div>
+        <div><span class="lbl">Hash:</span> <span class="val" id="myHash"></span></div>
+        <div><span class="lbl">Signature:</span> <span class="val typeout" id="mySig"></span></div>
+        <div><span class="lbl">Timestamp:</span> <span class="val" id="myTs"></span></div>
+        <div class="actions-row">
+          <button class="btn btn-ghost" type="button" id="shareBtn">Copy share link</button>
+        </div>
+        <div class="share-line" id="shareLine">
+          <span class="lbl">Share URL (anyone can re-check):</span>
+          <span id="shareUrl"></span>
+        </div>
+        <details class="terminal-expander">
+          <summary>Or re-check from your terminal</summary>
+          <pre id="terminalSnippet">curl -X POST https://free.donnaoss.com/api/widget-verify -H "Content-Type: application/json"</pre>
+        </details>
+      </div>
+    </section>
+
+    <!-- RIGHT PANE — live chain -->
+    <section class="pane" aria-labelledby="chain-h">
+      <h3 id="chain-h">Your tamper-evident chain</h3>
+      <div class="actions-row" style="margin-bottom: 0.75rem;">
+        <button class="btn btn-primary" type="button" id="verifyBtn">Re-check the chain</button>
+        <span class="verify-status" id="verifyStatus" aria-live="polite"></span>
+      </div>
+      <div class="chain-list" id="chainList" aria-live="polite"></div>
+      <div class="explainer">
+        Each entry's hash includes the previous entry's hash. Change any byte of any entry,
+        and every entry after it fails the integrity check. We sign with HMAC-SHA256 — a tamper-evidence check, not a third-party digital signature.
+      </div>
+    </section>
+
+  </main>
+
+  <aside class="callout-nexus">
+    <h3>This is the open substrate.</h3>
+    <p>The notarisation primitive you just used is open-source under AGPL. The commercial NEXUS tier
+       — multi-model council, sensitivity routing, falsification review, the matter graph — runs on
+       <strong>chiefofstaff.pro</strong>.</p>
+    <a class="cta-link" href="https://donnaoss.com">See DONNA on donnaoss.com →</a>
+  </aside>
+
+  <footer>
+    <div class="row">
+      <span class="badge">Demo key · 24h chain TTL</span>
+      <span class="badge">AGPL-3.0 · CodeTonight-SA/donna</span>
+    </div>
+  </footer>
+
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  // --------------------------------------------------------------------------
+  // Configuration
+  // --------------------------------------------------------------------------
+  var EXAMPLES = {
+    legal:     "Approved settlement offer of £75,000 for the Acme Holdings contract dispute, signed by counsel of record.",
+    technical: "Merged PR #1247: refactor auth middleware to use constant-time comparison; reviewed by two senior engineers.",
+    policy:    "Updated firm policy: all client communications via Slack require end-to-end encryption from 2026-06-01."
+  };
+  var POLL_MS = 10000;        // Role 5 §"V2 deferrables — WebSocket" — KV polling 10s
+  var MAX_INTENT = 500;       // mirrors web/api/widget-notarise.js MAX_INTENT_LEN
+
+  // --------------------------------------------------------------------------
+  // Session identity (P0.1 reshape) — per-visitor ephemeral private chain.
+  // A client-generated UUID, persisted in sessionStorage, sent to every widget
+  // API call. The chain you append to is YOUR session's chain, not a shared
+  // global one. Cleared when the tab/session ends; expires server-side in 24h.
+  // --------------------------------------------------------------------------
+  function newUuid() {
+    if (window.crypto && typeof window.crypto.randomUUID === "function") {
+      return window.crypto.randomUUID();
+    }
+    // RFC-4122 v4 fallback for older browsers without crypto.randomUUID.
+    return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, function (c) {
+      var r = (window.crypto && window.crypto.getRandomValues)
+        ? window.crypto.getRandomValues(new Uint8Array(1))[0] & 15
+        : Math.floor(Math.random() * 16);
+      var v = c === "x" ? r : (r & 0x3) | 0x8;
+      return v.toString(16);
+    });
+  }
+  function getSessionId() {
+    var key = "donna-widget-session";
+    var id = null;
+    try { id = window.sessionStorage.getItem(key); } catch (e) { id = null; }
+    if (!id) {
+      id = newUuid();
+      try { window.sessionStorage.setItem(key, id); } catch (e) { /* private mode — in-memory only */ }
+    }
+    return id;
+  }
+  var SESSION_ID = getSessionId();
+  // Role 4 vector e — client-side PII regex (catches structured shapes only)
+  var PII_PATTERNS = [
+    { name: "SSN-like", re: /\b\d{3}-\d{2}-\d{4}\b/ },
+    { name: "IBAN-like", re: /\b[A-Z]{2}\d{2}[A-Z0-9]{10,30}\b/ },
+    { name: "Card-like (Luhn-ish)", re: /\b(?:\d[ -]?){13,19}\b/ }
+  ];
+
+  // --------------------------------------------------------------------------
+  // DOM handles (single query each — KISS)
+  // --------------------------------------------------------------------------
+  var $ = function (id) { return document.getElementById(id); };
+  var intentEl    = $("intent");
+  var counterEl   = $("counter");
+  var notariseBtn = $("notariseBtn");
+  var notariseSt  = $("notariseStatus");
+  var verifyBtn   = $("verifyBtn");
+  var verifySt    = $("verifyStatus");
+  var chainListEl = $("chainList");
+  var chainStat   = $("chainStatus");
+  var myResult    = $("myResult");
+  var myPos       = $("myPos");
+  var myHash      = $("myHash");
+  var mySig       = $("mySig");
+  var myTs        = $("myTs");
+  var shareBtn    = $("shareBtn");
+  var shareLine   = $("shareLine");
+  var shareUrl    = $("shareUrl");
+  var errMsg      = $("errMsg");
+  var termSnippet = $("terminalSnippet");
+
+  var lastNotarised = null;  // {record, hash, position}
+
+  // --------------------------------------------------------------------------
+  // Helpers — small, single-purpose (CC<30, KISS<50)
+  // --------------------------------------------------------------------------
+  function trunc(s, head, tail) {
+    if (!s) return "";
+    if (s.length <= head + tail + 1) return s;
+    return s.substring(0, head) + "…" + s.substring(s.length - tail);
+  }
+  function relTime(iso) {
+    if (!iso) return "";
+    var t = new Date(iso).getTime();
+    if (isNaN(t)) return iso;
+    var s = Math.max(0, Math.floor((Date.now() - t) / 1000));
+    if (s < 5)      return "just now";
+    if (s < 60)     return s + "s ago";
+    if (s < 3600)   return Math.floor(s / 60) + "m ago";
+    if (s < 86400)  return Math.floor(s / 3600) + "h ago";
+    return Math.floor(s / 86400) + "d ago";
+  }
+  function escHtml(s) {
+    return String(s == null ? "" : s)
+      .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+  }
+  function setErr(msg) {
+    if (!msg) { errMsg.classList.remove("show"); errMsg.textContent = ""; return; }
+    errMsg.textContent = msg;
+    errMsg.classList.add("show");
+  }
+
+  // --------------------------------------------------------------------------
+  // Counter + PII pre-check
+  // --------------------------------------------------------------------------
+  function updateCounter() {
+    var n = intentEl.value.length;
+    counterEl.textContent = n + " / " + MAX_INTENT;
+    counterEl.classList.toggle("over", n > MAX_INTENT);
+  }
+  function piiCheck(text) {
+    for (var i = 0; i < PII_PATTERNS.length; i++) {
+      if (PII_PATTERNS[i].re.test(text)) return PII_PATTERNS[i].name;
+    }
+    return null;
+  }
+
+  // --------------------------------------------------------------------------
+  // Chain rendering
+  // --------------------------------------------------------------------------
+  function startedAgo(entries) {
+    if (!entries.length) return "—";
+    return relTime(entries[0].ts);
+  }
+  function renderChainStatus(count, entries, highlightPos) {
+    if (count === 0) {
+      chainStat.innerHTML = "<strong>Empty chain.</strong> Be entry #1 — paste a sentence and Notarise.";
+      return;
+    }
+    var pos = highlightPos ? "Entry <strong>" + highlightPos + "</strong> of " : "Entry <strong>" + count + "</strong> of ";
+    chainStat.innerHTML = pos + count + " — chain started <strong>" + startedAgo(entries) + "</strong>" +
+                          ". " + (count - (highlightPos ? 1 : 0)) + " prior entries from visitors like you.";
+  }
+  function entryCard(e, idx, total, opts) {
+    opts = opts || {};
+    var isMine = opts.mineHash && e.hash === opts.mineHash;
+    var isHighlight = opts.highlightPos && (idx + 1) === opts.highlightPos;
+    var badge = opts.archived ? '<span class="badge" data-v="archived">Archived</span>'
+                              : '<span class="badge" data-v="valid">Signed</span>';
+    var pos = "Entry " + (idx + 1) + " of " + total;
+    return '<div class="chain-entry ' + (isMine ? "mine new" : "") + (isHighlight ? " mine" : "") + '"' +
+           ' data-hash="' + escHtml(e.hash) + '">' +
+             '<div class="top">' +
+               '<span class="hash">' + escHtml(trunc(e.hash, 8, 8)) + '</span>' +
+               badge +
+             '</div>' +
+             '<div class="ts">' + escHtml(pos) + ' · ' + escHtml(relTime(e.ts)) + ' · sig ' +
+                escHtml(trunc(e.signature || "", 8, 8)) + '</div>' +
+             '<div class="summary">' + escHtml(e.intent) + '</div>' +
+           '</div>';
+  }
+  function renderChainList(entries, opts) {
+    opts = opts || {};
+    // newest-on-top per spec: API returns chronological; reverse for display.
+    var reversed = entries.slice().reverse();
+    var total = entries.length;
+    var html = reversed.map(function (e, i) {
+      var origIdx = total - 1 - i;
+      return entryCard(e, origIdx, total, opts);
+    }).join("");
+    chainListEl.innerHTML = html || '<div class="demo-note">No entries yet. Paste a sentence to start the chain.</div>';
+  }
+
+  // --------------------------------------------------------------------------
+  // Network — fetch wrappers (single source of error semantics)
+  // --------------------------------------------------------------------------
+  function fetchJson(url, opts) {
+    opts = opts || {};
+    return fetch(url, opts).then(function (r) {
+      return r.json().then(function (j) { return { status: r.status, body: j }; });
+    });
+  }
+  function loadChain(highlightPos) {
+    return fetchJson("/api/widget-chain?sessionId=" + encodeURIComponent(SESSION_ID)).then(function (r) {
+      if (!r.body || !r.body.ok) {
+        chainStat.textContent = "Could not load the chain. Refresh to retry.";
+        return;
+      }
+      var entries = r.body.entries || [];
+      renderChainStatus(r.body.count, entries, highlightPos);
+      renderChainList(entries, {
+        mineHash: lastNotarised && lastNotarised.hash,
+        highlightPos: highlightPos
+      });
+    }).catch(function () {
+      chainStat.textContent = "Network error loading the chain. Refresh to retry.";
+    });
+  }
+  function postNotarise(intent) {
+    return fetchJson("/api/widget-notarise", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ intent: intent, sessionId: SESSION_ID })
+    });
+  }
+  function postVerify(payload) {
+    var opts = { method: "POST", headers: { "Content-Type": "application/json" } };
+    // Default-chain verify (no inline payload) needs the sessionId so the
+    // server verifies THIS session's chain. Record/chain-text payloads are
+    // self-contained and pass through unchanged.
+    var bodyObj = payload || { sessionId: SESSION_ID };
+    opts.body = JSON.stringify(bodyObj);
+    return fetchJson("/api/widget-verify", opts);
+  }
+
+  // --------------------------------------------------------------------------
+  // Stripe-style signature type-out (400ms, character-by-character)
+  // --------------------------------------------------------------------------
+  function typeOutSig(el, sig) {
+    var full = trunc(sig, 16, 8);
+    el.innerHTML = '<span class="untyped">' + escHtml(full) + '</span>';
+    var n = full.length;
+    var step = Math.max(8, Math.floor(400 / n));
+    var i = 0;
+    function tick() {
+      i++;
+      if (i > n) return;
+      el.innerHTML = '<span class="typed">' + escHtml(full.substring(0, i)) + '</span>' +
+                     '<span class="untyped">' + escHtml(full.substring(i)) + '</span>';
+      if (i < n) setTimeout(tick, step);
+    }
+    setTimeout(tick, step);
+  }
+
+  // --------------------------------------------------------------------------
+  // Share URL — encode {entry, record} in URL fragment (Dissent D2 resolution)
+  // --------------------------------------------------------------------------
+  function buildShareUrl(position, record) {
+    var b64;
+    try {
+      b64 = btoa(unescape(encodeURIComponent(JSON.stringify(record))));
+    } catch (e) {
+      return location.origin + "/widget#entry=" + position;
+    }
+    return location.origin + "/widget#entry=" + position + "&record=" + b64;
+  }
+  function parseShareHash() {
+    var h = (location.hash || "").replace(/^#/, "");
+    if (!h) return null;
+    var parts = {};
+    h.split("&").forEach(function (kv) {
+      var eq = kv.indexOf("=");
+      if (eq === -1) parts[decodeURIComponent(kv)] = "";
+      else parts[decodeURIComponent(kv.substring(0, eq))] = decodeURIComponent(kv.substring(eq + 1));
+    });
+    if (!parts.entry) return null;
+    var out = { entry: parseInt(parts.entry, 10) };
+    if (parts.record) {
+      try { out.record = JSON.parse(decodeURIComponent(escape(atob(parts.record)))); }
+      catch (e) { out.record = null; }
+    }
+    return out;
+  }
+
+  // --------------------------------------------------------------------------
+  // Event wiring
+  // --------------------------------------------------------------------------
+  Array.prototype.forEach.call(document.querySelectorAll(".chip[data-example]"), function (btn) {
+    btn.addEventListener("click", function () {
+      intentEl.value = EXAMPLES[btn.getAttribute("data-example")] || "";
+      updateCounter();
+      setErr("");
+      intentEl.focus();
+    });
+  });
+  intentEl.addEventListener("input", function () { updateCounter(); setErr(""); });
+
+  notariseBtn.addEventListener("click", function () {
+    setErr("");
+    var text = (intentEl.value || "").trim();
+    if (!text) { setErr("Please paste or type a sentence first."); return; }
+    if (text.length > MAX_INTENT) { setErr("Too long — please trim to " + MAX_INTENT + " characters."); return; }
+    var hit = piiCheck(text);
+    if (hit) { setErr("Looks like " + hit + ". This is a public demo — please don't paste real PII."); return; }
+
+    notariseBtn.disabled = true;
+    notariseSt.textContent = "Notarising…";
+    notariseSt.removeAttribute("data-state");
+
+    postNotarise(text).then(function (r) {
+      notariseBtn.disabled = false;
+      if (r.status !== 200 || !r.body.ok) {
+        var code = (r.body && r.body.error) || ("http_" + r.status);
+        var nice = {
+          rate_limited: "Rate limit hit — please wait an hour and try again.",
+          content_blocked: "That content was blocked. Try different wording.",
+          pii_blocked: "PII detected on the server. Please remove personal data.",
+          bad_origin: "Cross-origin request rejected.",
+          intent_too_long: "Too long for a single entry.",
+          intent_required: "Please paste a sentence first.",
+          service_unavailable: "Signing key not configured — please email the team.",
+          sign_failed: "Signing failed — please try again."
+        }[code] || ("Could not notarise: " + code);
+        setErr(nice);
+        notariseSt.textContent = "Failed.";
+        notariseSt.setAttribute("data-state", "bad");
+        return;
+      }
+      lastNotarised = { record: r.body.record, hash: r.body.hash, position: r.body.position };
+      myPos.textContent  = "Entry " + r.body.position;
+      myHash.textContent = trunc(r.body.hash, 16, 8);
+      myTs.textContent   = r.body.record && r.body.record.timestamp ? r.body.record.timestamp : "just now";
+      typeOutSig(mySig, r.body.record && r.body.record.signature || "");
+      myResult.classList.add("show");
+      shareLine.classList.remove("show");
+      notariseSt.textContent = "Notarised. Position " + r.body.position + ".";
+      notariseSt.setAttribute("data-state", "ok");
+      loadChain(r.body.position);
+      // Refresh the terminal-snippet now that we have a record to embed.
+      updateTerminalSnippet();
+    }).catch(function (err) {
+      notariseBtn.disabled = false;
+      setErr("Network error. Please try again.");
+      notariseSt.textContent = "Failed.";
+      notariseSt.setAttribute("data-state", "bad");
+    });
+  });
+
+  verifyBtn.addEventListener("click", function () {
+    verifyBtn.disabled = true;
+    verifySt.textContent = "Verifying…";
+    verifySt.removeAttribute("data-state");
+    postVerify(null).then(function (r) {
+      verifyBtn.disabled = false;
+      if (r.status !== 200 || !r.body.ok) {
+        verifySt.textContent = "Verify failed.";
+        verifySt.setAttribute("data-state", "bad");
+        return;
+      }
+      if (r.body.valid) {
+        verifySt.textContent = "Chain intact ✓ " + r.body.count + " / " + r.body.count + " entries consistent";
+        verifySt.setAttribute("data-state", "ok");
+      } else {
+        verifySt.textContent = "Chain broken: " + (r.body.reason || "unknown") + " (entry " + (r.body.at || "?") + ")";
+        verifySt.setAttribute("data-state", "bad");
+      }
+    }).catch(function () {
+      verifyBtn.disabled = false;
+      verifySt.textContent = "Network error.";
+      verifySt.setAttribute("data-state", "bad");
+    });
+  });
+
+  shareBtn.addEventListener("click", function () {
+    if (!lastNotarised) return;
+    var url = buildShareUrl(lastNotarised.position, lastNotarised.record);
+    shareUrl.textContent = url;
+    shareLine.classList.add("show");
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(url).then(function () {
+        shareBtn.textContent = "Copied ✓";
+        setTimeout(function () { shareBtn.textContent = "Copy share link"; }, 1800);
+      });
+    }
+  });
+
+  function updateTerminalSnippet() {
+    if (!lastNotarised) {
+      termSnippet.textContent =
+        'curl -X POST https://free.donnaoss.com/api/widget-verify \\\n' +
+        '  -H "Content-Type: application/json"';
+      return;
+    }
+    var body = JSON.stringify({ record: lastNotarised.record });
+    termSnippet.textContent =
+      "curl -X POST https://free.donnaoss.com/api/widget-verify \\\n" +
+      "  -H \"Content-Type: application/json\" \\\n" +
+      "  -d '" + body.replace(/'/g, "'\\''") + "'";
+  }
+
+  // --------------------------------------------------------------------------
+  // Boot — load chain, parse share hash, start polling
+  // --------------------------------------------------------------------------
+  function boot() {
+    updateCounter();
+    updateTerminalSnippet();
+    var hashed = parseShareHash();
+    if (hashed && hashed.record) {
+      // Render archive-mode card from inline record even if chain expired it.
+      lastNotarised = { record: hashed.record, hash: hashed.record.signature || "", position: hashed.entry };
+    }
+    loadChain(hashed ? hashed.entry : null);
+    setInterval(function () { loadChain(); }, POLL_MS);
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", boot);
+  } else {
+    boot();
+  }
+})();
+</script>
+
+</body>
+</html>

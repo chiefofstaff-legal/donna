@@ -24,6 +24,9 @@
   "rewrites": [
     { "source": "/api/chat", "destination": "/api/chat" },
     { "source": "/api/signup", "destination": "/api/signup" },
-    { "source": "/api/health", "destination": "/api/health" }
+    { "source": "/api/health", "destination": "/api/health" },
+    { "source": "/api/widget-notarise", "destination": "/api/widget-notarise" },
+    { "source": "/api/widget-chain", "destination": "/api/widget-chain" },
+    { "source": "/api/widget-verify", "destination": "/api/widget-verify" }
   ]
 }

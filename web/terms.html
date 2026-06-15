@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>DONNA — Terms of Use &amp; Disclaimer</title>
+<meta name="description" content="Terms of Use and disclaimer for the DONNA cryptographic-notarisation (tamper-evidence) widget. Not legal advice; not legal notarisation." />
+<meta name="robots" content="index,follow" />
+<style>
+  :root {
+    --ink: #243b53; --head: #102a43; --muted: #627d98; --accent: #2563eb;
+    --line: #e1e8f0; --bg: #ffffff; --panel: #f7f9fc;
+  }
+  * { box-sizing: border-box; }
+  body {
+    font-family: -apple-system, "Segoe UI", Helvetica, Arial, sans-serif;
+    color: var(--ink); background: var(--bg); line-height: 1.6;
+    margin: 0; -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 760px; margin: 0 auto; padding: 40px 22px 64px; }
+  .back { font-size: 0.85rem; color: var(--accent); text-decoration: none; }
+  .back:hover { text-decoration: underline; }
+  h1 { color: var(--head); font-size: 1.7rem; margin: 18px 0 4px; letter-spacing: -0.01em; }
+  .updated { color: var(--muted); font-size: 0.85rem; margin: 0 0 8px; }
+  .summary {
+    background: var(--panel); border: 1px solid var(--line); border-left: 4px solid var(--accent);
+    border-radius: 6px; padding: 14px 16px; margin: 20px 0 28px;
+  }
+  .summary strong { color: var(--head); }
+  h2 { color: var(--head); font-size: 1.08rem; margin: 28px 0 8px; padding-bottom: 4px; border-bottom: 1px solid var(--line); }
+  h3 { color: var(--head); font-size: 0.98rem; margin: 18px 0 4px; }
+  p, li { font-size: 0.95rem; }
+  ul { padding-left: 20px; }
+  code { font-family: "SF Mono", Menlo, Consolas, monospace; font-size: 0.85em; color: var(--head); background: var(--panel); padding: 1px 4px; border-radius: 3px; }
+  .caps { text-transform: uppercase; letter-spacing: 0.02em; }
+  footer { margin-top: 40px; padding-top: 16px; border-top: 1px solid var(--line); color: var(--muted); font-size: 0.8rem; }
+  footer a { color: var(--accent); text-decoration: none; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <a class="back" href="/widget">&larr; Back to the widget</a>
+  <h1>Terms of Use &amp; Disclaimer</h1>
+  <p class="updated">Last updated: 15 June 2026</p>
+
+  <div class="summary">
+    <p style="margin:0 0 6px;"><strong>In plain English.</strong> The DONNA widget is a free, open-source demonstration of how cryptographic <em>tamper-evidence</em> works. You paste a short sentence; the service hashes and signs it into a private, short-lived chain you can re-check.</p>
+    <p style="margin:0;"><strong>It is a demonstration of a technique — it is not a legal service, not legal advice, and not a substitute for a notary or a lawyer.</strong> Do not paste confidential client information, personal data, or anything you would not put on a postcard.</p>
+  </div>
+
+  <h2>1. What this service is — and is not</h2>
+  <p>1.1 <strong>What it is.</strong> The DONNA widget at <code>free.donnaoss.com/widget</code> (the &ldquo;Service&rdquo;) is a free, publicly available demonstration of a cryptographic tamper-evidence mechanism: it computes a hash chain over the text you submit and applies a keyed message authentication code (HMAC-SHA256). We use the term &ldquo;cryptographic notarisation&rdquo; as a descriptive, technical name for this tamper-evidence.</p>
+  <p>1.2 <strong>What it is not.</strong> The Service is <strong>not</strong>, and must not be understood as:</p>
+  <ul>
+    <li><strong>legal or notarial notarisation</strong> — it is not performed by a commissioned notary and has no notarial legal effect of any kind;</li>
+    <li>a <strong>digital signature</strong> providing third-party non-repudiation — the mechanism is a <em>symmetric</em> HMAC using a key held by the operator, which demonstrates internal consistency and tamper-evidence <strong>only</strong>, and does not prove the identity of any author or bind any person;</li>
+    <li><strong>legal evidence</strong>, an attestation admissible in any proceeding, or proof of the authorship, truth, authenticity, or legal status of any content;</li>
+    <li><strong>legal advice</strong>, and no lawyer-client or other professional relationship is created by your use of it.</li>
+  </ul>
+  <p>1.3 <strong>No reliance.</strong> You must not rely on the Service, any record it produces, or any &ldquo;chain intact&rdquo; indication, for any legal, evidentiary, commercial, or other consequential purpose.</p>
+
+  <h2>2. No legal advice; no professional relationship</h2>
+  <p>The Service and all surrounding materials are provided for general informational and demonstrational purposes only. They do not constitute legal advice and do not create any attorney-client, fiduciary, or other professional relationship. The Operator (defined in §4.5) is not a law firm and does not practise law. For advice on your situation, consult a qualified lawyer in your jurisdiction.</p>
+
+  <h2>3. Acceptable use</h2>
+  <p>3.1 You agree <strong>not</strong> to submit to the Service any content that:</p>
+  <ul>
+    <li>is unlawful, defamatory, harassing, threatening, or fraudulent;</li>
+    <li>infringes any intellectual-property, privacy, confidentiality, or other right of any third party;</li>
+    <li>is or contains privileged, confidential, or client-matter information;</li>
+    <li>is or contains personal data (names, contact details, identifiers, account or payment numbers, special-category data), whether yours or another person&rsquo;s;</li>
+    <li>impersonates any person or falsely attributes a statement to them.</li>
+  </ul>
+  <p>3.2 The Service is a public-facing demonstration. <strong>Treat anything you submit as non-confidential.</strong> Although chains are session-private and short-lived (see §4), you must not submit information whose disclosure could harm you or anyone else.</p>
+  <p>3.3 The Operator may, without notice, throttle, block, or remove any use or content, and is not obliged to retain, monitor, or moderate submissions.</p>
+
+  <h2>4. Data, privacy, and retention</h2>
+  <p>4.1 <strong>No account.</strong> The Service requires no sign-up and collects no login identity.</p>
+  <p>4.2 <strong>What is processed.</strong> When you notarise, the Service processes the text you submit, the derived hash and HMAC, a coarse rate-limiting signal derived from your network address, and a randomly generated, client-side session identifier. Chains are <strong>session-private</strong> — keyed to your session identifier and not shared with or shown to other visitors.</p>
+  <p>4.3 <strong>Retention is ephemeral.</strong> Session chains automatically expire approximately <strong>24 hours</strong> after creation and are not intended to be permanent. The Service is not a record-keeping or archival system; do not use it to store anything you need to keep.</p>
+  <p>4.4 <strong>Lawful basis and rights.</strong> To the extent any submission contains personal data, processing rests on the Operator&rsquo;s legitimate interests in providing a security demonstration, under UK data-protection law (the UK GDPR and the Data Protection Act 2018). Because data is session-private and auto-expiring, erasure occurs by design on expiry. <strong>You should not submit personal data in the first place (see §3.1).</strong></p>
+  <p>4.5 <strong>Operator / data controller.</strong> The Service is operated by <strong>ChiefOfStaff</strong> (chiefofstaff.pro) together with <strong>CodeTonight</strong> (the &ldquo;Operator&rdquo;). For data-protection or legal queries, contact the Operator via <a href="https://donnaoss.com">donnaoss.com</a>.</p>
+
+  <h2>5. No warranty</h2>
+  <p class="caps">The service is provided &ldquo;as is&rdquo; and &ldquo;as available&rdquo;, without warranty of any kind, express or implied, including (without limitation) implied warranties of merchantability, fitness for a particular purpose, non-infringement, accuracy, availability, security, or that the service or any record it produces is correct, complete, durable, or fit for any evidentiary or legal purpose.</p>
+  <p>The Operator does not warrant that the Service will be uninterrupted or error-free.</p>
+
+  <h2>6. Limitation of liability</h2>
+  <p>To the maximum extent permitted by applicable law, the Operator and its contributors will not be liable for any indirect, incidental, special, consequential, or punitive damages, or for any loss of profits, data, goodwill, or for any reliance on the Service or any record it produces, arising out of or in connection with your use of the Service, on any theory of liability.</p>
+  <p>To the extent liability cannot be excluded, the Operator&rsquo;s total liability is limited to the greater of GBP 100 or the total amount (if any) you have paid the Operator to use the Service — which, for this free demonstration, is nil. Nothing in these terms excludes liability that cannot lawfully be excluded (including for fraud, or for death or personal injury caused by negligence).</p>
+
+  <h2>7. Intellectual property &amp; open-source licence</h2>
+  <p>7.1 The Service&rsquo;s source code is open-source under the GNU Affero General Public Licence v3.0 (AGPL-3.0). Your use of the hosted Service is also subject to these terms.</p>
+  <p>7.2 <strong>AGPL network clause (§13).</strong> If you run a modified version of this software so that users interact with it over a network, AGPL-3.0 requires you to offer those users access to the corresponding source code of your modified version. If you intend to self-host or modify it, review AGPL-3.0 (and take advice) on this obligation.</p>
+
+  <h2>8. Changes to the Service and to these terms</h2>
+  <p>The Operator may modify, suspend, or discontinue the Service at any time without notice, and may update these terms; the current version governs your use. Material changes will be indicated by an updated &ldquo;last updated&rdquo; date.</p>
+
+  <h2>9. Governing law and jurisdiction</h2>
+  <p>These terms, and any dispute arising out of or in connection with them or the Service, are governed by the law of <strong>England and Wales</strong>, and the courts of England and Wales have exclusive jurisdiction.</p>
+
+  <h2>10. Contact</h2>
+  <p>Questions about these terms: contact the Operator via <a href="https://donnaoss.com">donnaoss.com</a>. Security vulnerabilities: please report privately via a GitHub security advisory, not a public issue.</p>
+
+  <footer>
+    DONNA is open source under AGPL-3.0 · <a href="https://github.com/chiefofstaff-legal/donna">source on GitHub</a> · <a href="/widget">back to the widget</a>
+  </footer>
+
+</div>
+</body>
+</html>

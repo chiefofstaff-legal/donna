@@ -63,7 +63,11 @@ test("verifyChain() accepts PROBAT.md end-to-end (gold-standard parity)", () => 
   const result = idr.verifyChain(text, DEMO_KEY);
   assert.strictEqual(result.valid, true,
     `PROBAT.md verify failed: ${result.reason || ""} (at entry ${result.at || "?"})`);
-  assert.strictEqual(result.count, 3, `expected 3 IDRs in PROBAT.md, got ${result.count}`);
+  // Count is a floor, not a fixed value: the probat bot appends an IDR to
+  // PROBAT.md on every merge, so the chain grows by design. The gold-standard
+  // parity is `valid === true` above; pinning an exact count rots on each merge.
+  assert.ok(result.count >= 3,
+    `expected at least 3 IDRs in PROBAT.md (the chain grows as merges are notarised), got ${result.count}`);
 });
 
 test("cross-validation: bin/notarise verifies what web/lib/idr.js signed", { skip: !fs.existsSync(NOTARISE_BIN) }, () => {

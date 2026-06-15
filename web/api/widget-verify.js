@@ -1,14 +1,19 @@
 // POST /api/widget-verify — verify widget chain OR inline record.
 //
-// Two modes:
-//   (1) No body → verify the LIVE chain stored in widget-storage. Returns
-//       { ok:true, valid, count }.
+// Modes (verification semantics unchanged from prior; only the default-chain
+// mode is now session-scoped per the P0.1 reshape):
+//   (1) Body { sessionId: <uuid> } (no record/chain) → verify the caller's
+//       OWN session chain stored in widget-storage. Returns
+//       { ok:true, valid, count }. A missing/malformed sessionId in this mode
+//       → 400 session_required (a caller can never verify a shared/global
+//       chain, because there no longer is one).
 //   (2) Body { record: {...} } → verify a single record (archive mode for
 //       a share-URL whose chain-tail entry has expired). Returns
-//       { ok:true, valid, reason? }.
+//       { ok:true, valid, reason? }. SESSION-INDEPENDENT — a posted record is
+//       self-contained and verifies against the signing key alone.
 //   (3) Body { chain: "..." } → PROBAT-style chain text verify (preserves
 //       the terminal-curl rail: any visitor can paste a chain and get the
-//       same answer in their terminal as in the widget).
+//       same answer in their terminal as in the widget). SESSION-INDEPENDENT.
 //
 // Origin check: relaxed — missing Origin (curl) → allow. Same rationale as
 // widget-notarise: the terminal rail is part of the demo proof.
@@ -56,9 +61,14 @@ module.exports = async function handler(req, res) {
       const r = idr.verifyRecord(body.record, key);
       return res.status(200).json(Object.assign({ ok: true }, r));
     }
-    // Default: verify the live widget chain by re-signing each entry from
-    // the stored payload and re-checking the previous_hash chain.
-    const entries = await storage.readChain();
+    // Default: verify the caller's OWN session chain by re-signing each entry
+    // from the stored payload and re-checking the previous_hash chain. The
+    // sessionId is required here (modes 1/2 above are self-contained and need
+    // no session); a missing/malformed sessionId → 400 session_required.
+    if (!storage.isValidSessionId(body && body.sessionId)) {
+      return res.status(400).json({ ok: false, error: "session_required" });
+    }
+    const entries = await storage.readChain(body.sessionId);
     // Strip internal fields BEFORE verifying — they were never signed.
     const cleaned = entries.map((e) => {
       const { ip, _ts, ...pub } = e;

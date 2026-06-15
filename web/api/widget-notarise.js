@@ -32,6 +32,18 @@
 const idr = require("../lib/idr.js");
 const storage = require("../lib/widget-storage.js");
 
+// KV-mandatory note: without KV, the in-memory chain fallback is PER-INSTANCE.
+// On Vercel's serverless runtime each invocation may be a different instance,
+// so a session's chain written by one invocation is invisible to the next —
+// the integrity guarantee silently degrades. The fallback is retained (tests
+// and `vercel dev` need it), but a misconfigured production deploy is loudly
+// flagged at module load so it cannot pass silently.
+if (!storage.kvConfigured() && process.env.VERCEL) {
+  console.warn(
+    "widget storage: KV not configured — per-instance memory fallback is NOT safe in production",
+  );
+}
+
 const MAX_BODY_BYTES = 4096;        // matches /api/notarise:8
 const MAX_INTENT_LEN = 500;         // matches /api/notarise:9 — DRY tunable
 
@@ -53,10 +65,19 @@ function readBody(req) {
 }
 
 function clientIp(req) {
-  // Vercel-friendly client-IP extraction. Prefer x-forwarded-for first hop.
-  const xff = req.headers && req.headers["x-forwarded-for"];
+  // The real client IP on Vercel is PLATFORM-SET in x-vercel-forwarded-for /
+  // x-real-ip, NOT the leftmost hop of x-forwarded-for. The leftmost XFF hop
+  // is attacker-controlled (a client can send any X-Forwarded-For), so keying
+  // the rate limit off xff[0] lets one attacker mint unlimited distinct keys
+  // and bypass the per-IP cap entirely. Prefer the platform-set headers; fall
+  // back to xff[0] only as a last resort for non-Vercel/local environments.
+  const h = req.headers || {};
+  if (typeof h["x-vercel-forwarded-for"] === "string" && h["x-vercel-forwarded-for"]) {
+    return h["x-vercel-forwarded-for"].split(",")[0].trim();
+  }
+  if (typeof h["x-real-ip"] === "string" && h["x-real-ip"]) return h["x-real-ip"];
+  const xff = h["x-forwarded-for"];
   if (typeof xff === "string" && xff) return xff.split(",")[0].trim();
-  if (req.headers && req.headers["x-real-ip"]) return req.headers["x-real-ip"];
   return (req.socket && req.socket.remoteAddress) || "";
 }
 
@@ -89,6 +110,11 @@ module.exports = async function handler(req, res) {
   }
   if (body === null) return res.status(400).json({ ok: false, error: "invalid_json" });
   if (!body || typeof body !== "object") return res.status(400).json({ ok: false, error: "invalid_body" });
+  // Session-private chains: a well-formed client-generated UUID is required.
+  // It scopes every read/write to this visitor's own chain (P0.1 reshape).
+  if (!storage.isValidSessionId(body.sessionId)) {
+    return res.status(400).json({ ok: false, error: "session_required" });
+  }
   if (typeof body.intent !== "string" || !body.intent.trim()) {
     return res.status(400).json({ ok: false, error: "intent_required" });
   }
@@ -108,23 +134,29 @@ module.exports = async function handler(req, res) {
   }
 
   try {
-    // Compute previous_hash from the current chain tail (chain shape ratified W6).
-    const chain = await storage.readChain();
-    const prev = chain.length ? chain[chain.length - 1].hash : idr.GENESIS_PREVIOUS_HASH;
-    const out = idr.sign({
-      intent: body.intent,
-      signer: storage.HARDCODED_SIGNER,       // ← hardcoded; ignores any client-supplied signer
-      confidence: 1.0,
-      previousHash: prev,
-      metadata: { source: "widget" },
-      key,
+    // TOCTOU-safe: sign INSIDE pushEntry's per-session lock. pushEntry reads
+    // the locked chain tail, passes its hash as `prevHash`, and we sign with
+    // exactly that previous_hash — no window for a concurrent append to make
+    // our previous_hash stale. The result is captured so the response returns
+    // the actually-appended record.
+    let signed = null;
+    const push = await storage.pushEntry(body.sessionId, ip, function (prevHash) {
+      const out = idr.sign({
+        intent: body.intent,
+        signer: storage.HARDCODED_SIGNER,     // ← hardcoded; ignores any client-supplied signer
+        confidence: 1.0,
+        previousHash: prevHash,
+        metadata: { source: "widget" },
+        key,
+      });
+      signed = out;
+      return { hash: out.hash, intent: body.intent, ts: out.record.timestamp, signature: out.record.signature, previous_hash: out.record.previous_hash, signer: out.record.signer };
     });
-    const push = await storage.pushEntry(
-      { hash: out.hash, intent: body.intent, ts: out.record.timestamp, signature: out.record.signature, previous_hash: out.record.previous_hash, signer: out.record.signer },
-      ip,
-    );
-    return res.status(200).json({ ok: true, record: out.record, hash: out.hash, position: push.position });
+    return res.status(200).json({ ok: true, record: signed.record, hash: signed.hash, position: push.position });
   } catch (e) {
+    if (e && e.code === "invalid_session") {
+      return res.status(400).json({ ok: false, error: "session_required" });
+    }
     console.error(`/api/widget-notarise: sign failed: ${e.message}`);
     return res.status(500).json({ ok: false, error: "sign_failed" });
   }

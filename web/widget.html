@@ -81,7 +81,8 @@
   <section class="hero">
     <div class="verbs">paste · sign · verify</div>
     <h1>Paste any sentence. Watch it become a signed legal record. Verify it from any terminal.</h1>
-    <h2 class="subh1">No signup. Real HMAC-SHA256 signatures. The chain you append to is the same chain every other visitor sees.</h2>
+    <!-- RESHAPE: copy made factual for session-private; V>>+Craig to finalise voice -->
+    <h2 class="subh1">No signup. Real HMAC-SHA256 signatures. The chain you append to is your private session chain — ephemeral, expires in 24h.</h2>
     <div class="chain-status" id="chainStatus">Loading the live chain…</div>
   </section>
 
@@ -158,7 +159,7 @@
 
   <footer>
     <div class="row">
-      <span class="badge">Demo key · rotates weekly · 24h chain TTL</span>
+      <span class="badge">Demo key · 24h chain TTL</span>
       <span class="badge">AGPL-3.0 · CodeTonight-SA/donna</span>
     </div>
   </footer>
@@ -179,6 +180,37 @@
   };
   var POLL_MS = 10000;        // Role 5 §"V2 deferrables — WebSocket" — KV polling 10s
   var MAX_INTENT = 500;       // mirrors web/api/widget-notarise.js MAX_INTENT_LEN
+
+  // --------------------------------------------------------------------------
+  // Session identity (P0.1 reshape) — per-visitor ephemeral private chain.
+  // A client-generated UUID, persisted in sessionStorage, sent to every widget
+  // API call. The chain you append to is YOUR session's chain, not a shared
+  // global one. Cleared when the tab/session ends; expires server-side in 24h.
+  // --------------------------------------------------------------------------
+  function newUuid() {
+    if (window.crypto && typeof window.crypto.randomUUID === "function") {
+      return window.crypto.randomUUID();
+    }
+    // RFC-4122 v4 fallback for older browsers without crypto.randomUUID.
+    return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, function (c) {
+      var r = (window.crypto && window.crypto.getRandomValues)
+        ? window.crypto.getRandomValues(new Uint8Array(1))[0] & 15
+        : Math.floor(Math.random() * 16);
+      var v = c === "x" ? r : (r & 0x3) | 0x8;
+      return v.toString(16);
+    });
+  }
+  function getSessionId() {
+    var key = "donna-widget-session";
+    var id = null;
+    try { id = window.sessionStorage.getItem(key); } catch (e) { id = null; }
+    if (!id) {
+      id = newUuid();
+      try { window.sessionStorage.setItem(key, id); } catch (e) { /* private mode — in-memory only */ }
+    }
+    return id;
+  }
+  var SESSION_ID = getSessionId();
   // Role 4 vector e — client-side PII regex (catches structured shapes only)
   var PII_PATTERNS = [
     { name: "SSN-like", re: /\b\d{3}-\d{2}-\d{4}\b/ },
@@ -312,7 +344,7 @@
     });
   }
   function loadChain(highlightPos) {
-    return fetchJson("/api/widget-chain").then(function (r) {
+    return fetchJson("/api/widget-chain?sessionId=" + encodeURIComponent(SESSION_ID)).then(function (r) {
       if (!r.body || !r.body.ok) {
         chainStat.textContent = "Could not load the chain. Refresh to retry.";
         return;
@@ -331,13 +363,16 @@
     return fetchJson("/api/widget-notarise", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ intent: intent })
+      body: JSON.stringify({ intent: intent, sessionId: SESSION_ID })
     });
   }
   function postVerify(payload) {
     var opts = { method: "POST", headers: { "Content-Type": "application/json" } };
-    if (payload) opts.body = JSON.stringify(payload);
-    else opts.body = "";
+    // Default-chain verify (no inline payload) needs the sessionId so the
+    // server verifies THIS session's chain. Record/chain-text payloads are
+    // self-contained and pass through unchanged.
+    var bodyObj = payload || { sessionId: SESSION_ID };
+    opts.body = JSON.stringify(bodyObj);
     return fetchJson("/api/widget-verify", opts);
   }
 

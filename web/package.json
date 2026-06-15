@@ -1,0 +1,8 @@
+{
+  "name": "donna-widget",
+  "private": true,
+  "description": "DONNA IDR public widget — session-private ephemeral chains. Tests run on Node's built-in runner (zero deps).",
+  "scripts": {
+    "test": "node --test"
+  }
+}

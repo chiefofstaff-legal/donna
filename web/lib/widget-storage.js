@@ -1,12 +1,24 @@
 // DONNA · widget storage — KV-or-memory backend + the five-layer defence stack.
 //
 // PURPOSE
-//   The /widget endpoints need persistence (a global rolling chain), rate
-//   limiting (per-IP / per-window), per-IP entry caps, and content filters
-//   (word blocklist + PII regex). This module is the single shim those
-//   endpoints call. It carries the security-relevant logic so /api/widget-*
-//   handlers stay thin (single responsibility — SRP/GRASP Information Expert
-//   pattern: the data lives here, so the rules that gate that data live here).
+//   The /widget endpoints need persistence (a per-SESSION rolling chain),
+//   rate limiting (per-IP / per-window), per-IP entry caps, and content
+//   filters (word blocklist + PII regex). This module is the single shim
+//   those endpoints call. It carries the security-relevant logic so
+//   /api/widget-* handlers stay thin (single responsibility — SRP/GRASP
+//   Information Expert pattern: the data lives here, so the rules that gate
+//   that data live here).
+//
+// SESSION-PRIVATE CHAINS (reshape, P0.1 — 11-lens SWOT #1 risk)
+//   Each visitor gets a client-generated UUID sessionId. The chain is keyed
+//   `widget:chain:<sessionId>` (NOT one shared global chain). One session can
+//   neither read, append to, nor list another session's chain. This removes
+//   the cross-user impersonation / poisoning / hosting surface that a single
+//   public chain exposes. sessionId is validated as a well-formed UUID at the
+//   boundary; a malformed sessionId is rejected (throws), never silently
+//   coerced to a shared key. Every session key is written with `EX
+//   ENTRY_TTL_SEC` (KV) / an expiresAt (memory) — the 24h TTL that was
+//   previously DECLARED but never APPLIED is now enforced on every write.
 //
 // STORAGE
 //   Backend selected at module load:
@@ -28,8 +40,11 @@
 //   This module's design is wrong if (a) the in-memory backend silently
 //   accepted writes that the KV backend would have rejected (lockstep
 //   contract violation — caught by widget-storage.test.js asserting both
-//   reject the same inputs), or (b) the per-IP cap admits a 6th entry under
-//   any input shape (test: per_ip_cap_replaces_oldest fails).
+//   reject the same inputs), (b) the per-IP cap admits a 6th entry under
+//   any input shape (test: per_ip_cap_replaces_oldest fails), (c) session A
+//   can read or append to session B's chain (test:
+//   per_session_chain_isolation fails), or (d) a per-session key is ever
+//   written without an expiry (test: ttl_is_set_on_write fails).
 
 "use strict";
 
@@ -40,6 +55,29 @@ const MAX_PER_IP_IN_CHAIN = 5;          // per-IP visibility cap
 const ENTRY_TTL_SEC = 24 * 60 * 60;     // 24h per-entry TTL
 const RATE_WINDOW_SEC = 60 * 60;        // 1h rate window
 const HARDCODED_SIGNER = "free.donnaoss.com demo visitor";
+
+// ─── Session identity (per-session chain keying) ─────────────────────
+// Accepts RFC-4122 UUIDs (any version) — the shape crypto.randomUUID() and
+// the browser's crypto.randomUUID() emit. Rejecting anything else means a
+// caller cannot smuggle a path-traversal / shared-key string in as a
+// sessionId; the key namespace is bounded to well-formed UUIDs only.
+const UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+function isValidSessionId(sessionId) {
+  return typeof sessionId === "string" && UUID_RE.test(sessionId);
+}
+
+// Throws on a malformed sessionId — never coerce to a shared/global key.
+// Returns the per-session chain key. This is the single place the chain key
+// is constructed, so isolation cannot be bypassed by a call-site building
+// the key by hand.
+function chainKeyFor(sessionId) {
+  if (!isValidSessionId(sessionId)) {
+    const e = new Error("invalid_session"); e.code = "invalid_session"; throw e;
+  }
+  return `widget:chain:${sessionId}`;
+}
 
 // Word blocklist — small curated set. R0-honest: this catches the casual
 // case (~95th percentile); adversarial Unicode/leetspeak will bypass it.
@@ -66,9 +104,14 @@ const PII_RULES = Object.freeze([
   { name: "credit_card", re: /\b(?:\d[ -]*?){13,16}\b/,                      reason: "looks like a credit card number" },
 ]);
 
+// Genesis previous_hash for an empty chain (mirrors idr.js GENESIS_PREVIOUS_HASH
+// — defined locally to keep this module dependency-free of idr.js, the same
+// 64-zero literal the signer/verifier use).
+const GENESIS_PREVIOUS_HASH = "0".repeat(64);
+
 // ─── Backend selection (KV-or-memory) ────────────────────────────────
 const memoryStore = new Map();   // key → { value, expiresAt|null }
-const memoryLists = new Map();   // key → array (FIFO)
+const memoryLists = new Map();   // key → { value: array (FIFO), expiresAt }
 
 // Single helper that reads the KV REST credentials. Centralised so the
 // rest of the module never references the env directly (syscall-doctrine:
@@ -156,8 +199,11 @@ async function checkRateLimit(ip, opts) {
 //   - in-memory:  key-with-expiry parity (single-process Node; await-yield
 //                 lets the spinner notice the lock without busy-loop)
 // 5s TTL keeps stale locks bounded if a writer crashes mid-transaction.
-async function acquireChainLock() {
-  const lockKey = "widget:chain-lock";
+// Lock is PER-SESSION: two distinct sessions never serialise against each
+// other, but concurrent appends WITHIN one session still serialise (which is
+// what the previous_hash chain integrity requires).
+async function acquireChainLock(sessionId) {
+  const lockKey = `widget:chain-lock:${sessionId}`;
   const lockTtlSec = 5;
   const spinIntervalMs = 30;
   const deadline = Date.now() + lockTtlSec * 1000;
@@ -178,33 +224,54 @@ async function acquireChainLock() {
   return false;
 }
 
-async function releaseChainLock() {
-  const lockKey = "widget:chain-lock";
+async function releaseChainLock(sessionId) {
+  const lockKey = `widget:chain-lock:${sessionId}`;
   if (kvConfigured()) await kvCall(["DEL", lockKey]);
   else memoryStore.delete(lockKey);
 }
 
 // ─── Defence layer 5: per-IP entry cap (max 5 in visible chain) ──────
-// FIFO push that ALSO enforces per-IP cap. Returns the new chain length
-// AND the position of the just-pushed entry. Eviction order:
+// FIFO push that ALSO enforces per-IP cap. Returns the new chain length,
+// the position of the just-pushed entry, AND the signed entry that was
+// appended. Eviction order:
 //   1. Per-IP overflow first (remove the same IP's oldest entry)
 //   2. Global overflow next (remove the chain's oldest entry across all IPs)
 // This guarantees one push = one entry visible, never two pushes coalescing.
-// Wrapped in chain-tail lock (Defence layer 4 above) so concurrent calls
-// serialise — required for chain verify integrity per grip-anywhere §6d.
-async function pushEntry(entry, ip) {
-  if (!entry || typeof entry !== "object") throw new Error("entry_invalid");
-  if (typeof entry.hash !== "string" || !/^[0-9a-f]{64}$/.test(entry.hash)) {
-    throw new Error("entry_hash_invalid");
-  }
-  const stamped = Object.assign({}, entry, { ip: ip || "", _ts: Date.now() });
+// Wrapped in the per-session chain lock (Defence layer 4 above) so concurrent
+// calls within a session serialise — required for chain verify integrity per
+// grip-anywhere §6d.
+//
+// TOCTOU FIX (reshape, P1): the entry is built by `buildEntry(prevHash)`
+// INSIDE the lock, AFTER the chain tail is read. `prevHash` is the locked
+// tail's hash (or GENESIS for an empty chain). Previously the caller computed
+// previous_hash from an UNLOCKED read and then signed, so a concurrent append
+// could land between the read and the lock, leaving the just-signed entry
+// pointing at a stale previous_hash (a permanent chain break). Signing inside
+// the critical section closes that window: prev is read and consumed under the
+// same lock that writes the result.
+async function pushEntry(sessionId, ip, buildEntry) {
+  if (typeof buildEntry !== "function") throw new Error("buildEntry_required");
+  // chainKeyFor() validates sessionId (throws invalid_session) — do it before
+  // acquiring the lock so a bad sessionId never holds a lock.
+  chainKeyFor(sessionId);
 
-  const lockOk = await acquireChainLock();
+  const lockOk = await acquireChainLock(sessionId);
   if (!lockOk) throw new Error("chain_lock_timeout");
 
   try {
     // Read current chain (under lock — no concurrent writer can race us)
-    let chain = await readChain();
+    let chain = await readChain(sessionId);
+
+    // Compute previous_hash from the LOCKED tail (TOCTOU-safe).
+    const prevHash = chain.length ? chain[chain.length - 1].hash : GENESIS_PREVIOUS_HASH;
+
+    // Caller signs the record with this prev, returns the entry to append.
+    const entry = await buildEntry(prevHash);
+    if (!entry || typeof entry !== "object") throw new Error("entry_invalid");
+    if (typeof entry.hash !== "string" || !/^[0-9a-f]{64}$/.test(entry.hash)) {
+      throw new Error("entry_hash_invalid");
+    }
+    const stamped = Object.assign({}, entry, { ip: ip || "", _ts: Date.now() });
 
     // Per-IP cap: if this IP already has MAX_PER_IP_IN_CHAIN, drop oldest from that IP
     if (ip) {
@@ -220,36 +287,47 @@ async function pushEntry(entry, ip) {
 
     // Append new + write (atomic under lock — no concurrent reader sees half-state)
     chain.push(stamped);
-    await writeChain(chain);
-    return { length: chain.length, position: chain.length };
+    await writeChain(sessionId, chain);
+    return { length: chain.length, position: chain.length, entry: stamped, previousHash: prevHash };
   } finally {
-    await releaseChainLock();
+    await releaseChainLock(sessionId);
   }
 }
 
-async function readChain() {
-  const listKey = "widget:chain";
+async function readChain(sessionId) {
+  const listKey = chainKeyFor(sessionId);
   if (kvConfigured()) {
     const raw = await kvCall(["GET", listKey]);
     if (!raw) return [];
     try { return JSON.parse(raw); } catch { return []; }
   }
-  return memoryLists.get(listKey) ? memoryLists.get(listKey).slice() : [];
+  const rec = memoryLists.get(listKey);
+  // Memory backend honours the same TTL semantics as KV's EX (parity): an
+  // expired session chain reads as empty.
+  if (!rec || (rec.expiresAt && rec.expiresAt <= Date.now())) return [];
+  return rec.value.slice();
 }
 
-async function writeChain(chain) {
-  const listKey = "widget:chain";
+// Every write stamps the 24h TTL — KV via SET ... EX, memory via expiresAt.
+// This is the enforcement of ENTRY_TTL_SEC that was previously declared but
+// never applied. The expiry is refreshed on each write, so an active session
+// keeps its chain alive; an abandoned session's chain expires within 24h.
+async function writeChain(sessionId, chain) {
+  const listKey = chainKeyFor(sessionId);
   if (kvConfigured()) {
-    await kvCall(["SET", listKey, JSON.stringify(chain)]);
+    await kvCall(["SET", listKey, JSON.stringify(chain), "EX", ENTRY_TTL_SEC]);
   } else {
-    memoryLists.set(listKey, chain.slice());
+    memoryLists.set(listKey, { value: chain.slice(), expiresAt: Date.now() + ENTRY_TTL_SEC * 1000 });
   }
 }
 
 // ─── Read API ────────────────────────────────────────────────────────
-async function listChain(opts) {
+// Lists ONLY the caller's session chain. A malformed/absent sessionId throws
+// (via readChain → chainKeyFor) — a caller can never list another session's
+// or a shared/global chain.
+async function listChain(sessionId, opts) {
   const max = (opts && typeof opts.max === "number") ? opts.max : MAX_CHAIN_LEN;
-  const chain = await readChain();
+  const chain = await readChain(sessionId);
   // Public shape: strip internal fields (`ip`, `_ts` are private)
   return chain.slice(-max).map((e) => {
     const { ip, _ts, ...pub } = e;
@@ -263,6 +341,12 @@ function _resetForTests() {
   memoryLists.clear();
 }
 
+// Test-only accessor for the in-memory list backend, so tests can assert the
+// TTL (expiresAt) was stamped on a write. Not used in production code paths.
+function __memoryListsForTests() {
+  return memoryLists;
+}
+
 module.exports = {
   // tunables (exported for tests + observability)
   MAX_PER_IP_PER_HOUR,
@@ -273,6 +357,10 @@ module.exports = {
   HARDCODED_SIGNER,
   WORD_BLOCKLIST,
   PII_RULES,
+  GENESIS_PREVIOUS_HASH,
+  // session identity
+  isValidSessionId,
+  chainKeyFor,
   // surface
   blocklistDeny,
   piiDeny,
@@ -282,4 +370,5 @@ module.exports = {
   listChain,
   kvConfigured,
   _resetForTests,
+  __memoryListsForTests,
 };

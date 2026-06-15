@@ -4,10 +4,10 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 <title>DONNA — Paste it. Sign it. Verify it.</title>
-<meta name="description" content="Paste any sentence. Watch it become a signed legal record on a live chain. Verify it from any terminal. No signup. Real cryptography." />
+<meta name="description" content="Paste any sentence. Watch it become a tamper-evident record on a live chain. Re-check it from any terminal. No signup. Real cryptography." />
 <meta name="robots" content="index, follow" />
 <meta property="og:title" content="DONNA — Live cryptographic notarisation in your browser" />
-<meta property="og:description" content="Paste any sentence. Watch it become a signed legal record. Verify it from any terminal." />
+<meta property="og:description" content="Paste any sentence. Watch it become a tamper-evident record. Re-check it from any terminal." />
 <meta property="og:image:alt" content="DONNA — Decision-Oriented Network Notarisation for Attorneys" />
 <meta property="og:type" content="website" />
 <link rel="stylesheet" href="/css/forensic.css" />
@@ -79,10 +79,11 @@
   </header>
 
   <section class="hero">
-    <div class="verbs">paste · sign · verify</div>
-    <h1>Paste any sentence. Watch it become a signed legal record. Verify it from any terminal.</h1>
+    <div class="verbs">paste · notarise · re-check</div>
+    <h1>Paste any sentence. Watch it become a tamper-evident record. Re-check it from any terminal.</h1>
     <!-- RESHAPE: copy made factual for session-private; V>>+Craig to finalise voice -->
     <h2 class="subh1">No signup. Real HMAC-SHA256 signatures. The chain you append to is your private session chain — ephemeral, expires in 24h.</h2>
+    <p class="hero-disclaimer">"Cryptographic notarisation" here means <strong>tamper-evidence</strong> — a hash chain you can re-check. It is <strong>not</strong> legal or notarial notarisation, not a third-party digital signature, and not legal advice.</p>
     <div class="chain-status" id="chainStatus">Loading the live chain…</div>
   </section>
 
@@ -123,11 +124,11 @@
           <button class="btn btn-ghost" type="button" id="shareBtn">Copy share link</button>
         </div>
         <div class="share-line" id="shareLine">
-          <span class="lbl">Share URL (anyone can verify):</span>
+          <span class="lbl">Share URL (anyone can re-check):</span>
           <span id="shareUrl"></span>
         </div>
         <details class="terminal-expander">
-          <summary>Or verify from your terminal</summary>
+          <summary>Or re-check from your terminal</summary>
           <pre id="terminalSnippet">curl -X POST https://free.donnaoss.com/api/widget-verify -H "Content-Type: application/json"</pre>
         </details>
       </div>
@@ -135,15 +136,15 @@
 
     <!-- RIGHT PANE — live chain -->
     <section class="pane" aria-labelledby="chain-h">
-      <h3 id="chain-h">Live signed chain</h3>
+      <h3 id="chain-h">Your tamper-evident chain</h3>
       <div class="actions-row" style="margin-bottom: 0.75rem;">
-        <button class="btn btn-primary" type="button" id="verifyBtn">Verify entire chain</button>
+        <button class="btn btn-primary" type="button" id="verifyBtn">Re-check the chain</button>
         <span class="verify-status" id="verifyStatus" aria-live="polite"></span>
       </div>
       <div class="chain-list" id="chainList" aria-live="polite"></div>
       <div class="explainer">
         Each entry's hash includes the previous entry's hash. Change any byte of any entry,
-        and every entry after it fails to verify. We sign with HMAC-SHA256.
+        and every entry after it fails the integrity check. We sign with HMAC-SHA256 — a tamper-evidence check, not a third-party digital signature.
       </div>
     </section>
 
@@ -447,7 +448,7 @@
     if (hit) { setErr("Looks like " + hit + ". This is a public demo — please don't paste real PII."); return; }
 
     notariseBtn.disabled = true;
-    notariseSt.textContent = "Signing…";
+    notariseSt.textContent = "Notarising…";
     notariseSt.removeAttribute("data-state");
 
     postNotarise(text).then(function (r) {
@@ -476,7 +477,7 @@
       typeOutSig(mySig, r.body.record && r.body.record.signature || "");
       myResult.classList.add("show");
       shareLine.classList.remove("show");
-      notariseSt.textContent = "Signed. Position " + r.body.position + ".";
+      notariseSt.textContent = "Notarised. Position " + r.body.position + ".";
       notariseSt.setAttribute("data-state", "ok");
       loadChain(r.body.position);
       // Refresh the terminal-snippet now that we have a record to embed.
@@ -501,7 +502,7 @@
         return;
       }
       if (r.body.valid) {
-        verifySt.textContent = "Verified ✓ " + r.body.count + " / " + r.body.count + " entries valid";
+        verifySt.textContent = "Chain intact ✓ " + r.body.count + " / " + r.body.count + " entries consistent";
         verifySt.setAttribute("data-state", "ok");
       } else {
         verifySt.textContent = "Chain broken: " + (r.body.reason || "unknown") + " (entry " + (r.body.at || "?") + ")";

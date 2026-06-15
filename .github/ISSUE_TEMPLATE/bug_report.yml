@@ -1,0 +1,54 @@
+name: Bug report
+description: Report a defect in DONNA so it can be reproduced and fixed.
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a bug. Please fill in the sections below so the issue can be reproduced quickly.
+
+        **Do not include client data, matter details, privileged content, or secrets (API keys, tokens).** Redact before posting — this is a public repository.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: A clear description of the bug and what you expected to happen instead.
+      placeholder: When I ..., DONNA ...; I expected ...
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+      description: Minimal, ordered steps. A failing command or short snippet is ideal.
+      placeholder: |
+        1. Run `...`
+        2. ...
+        3. See error
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant logs or output
+      description: Paste any error output. This is automatically formatted as code, so no backticks are needed.
+      render: shell
+    validations:
+      required: false
+  - type: input
+    id: version
+    attributes:
+      label: Version / commit
+      description: The DONNA version, tag, or commit SHA you are running.
+      placeholder: e.g. 7506c90 or main @ 2026-06-15
+    validations:
+      required: false
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Operating system, Python version, and any integration in use.
+      placeholder: macOS 15 · Python 3.12 · Clio sandbox
+    validations:
+      required: false

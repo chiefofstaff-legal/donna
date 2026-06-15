@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Questions & discussion
+    url: https://donnaoss.com
+    about: For general questions, usage help, and project information, visit the DONNA site.
+  - name: Report a security vulnerability
+    url: https://github.com/chiefofstaff-legal/donna/security/advisories/new
+    about: Please report security issues privately via a GitHub security advisory — never open a public issue for a vulnerability.

@@ -1,0 +1,45 @@
+name: Feature request
+description: Suggest an enhancement or new capability for DONNA.
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for suggesting an improvement. Lead with the problem you want solved — that helps shape the best solution.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem / motivation
+      description: What are you trying to do, and where does DONNA fall short today?
+      placeholder: As an attorney, I want ... so that ...
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: Describe the capability or change you have in mind.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Other approaches you have weighed, and why this one is preferable.
+    validations:
+      required: false
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      description: Which part of DONNA does this touch?
+      options:
+        - Notarisation / audit chain
+        - Delegation workflow
+        - Integrations (Clio, etc.)
+        - Document understanding
+        - Governance / access control
+        - Other / not sure
+    validations:
+      required: false

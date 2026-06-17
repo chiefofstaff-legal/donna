@@ -91,6 +91,12 @@ def _hmac_key() -> bytes:
     return raw.encode("utf-8")
 
 
+# Backward-compat alias: existing mutation tests (test_notarise_mutations.py) reference the
+# historical `_key` symbol. `_hmac_key` is its rename — identical behaviour (sys.exit(2) on
+# missing key). Keep the alias so the HMAC key-loading contract is unchanged for callers.
+_key = _hmac_key
+
+
 def _ed25519_privkey():  # -> Ed25519PrivateKey
     """Load Ed25519 private key from ENV_ED25519_KEY (32-byte seed as hex)."""
     from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey

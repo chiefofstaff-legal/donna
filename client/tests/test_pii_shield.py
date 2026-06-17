@@ -83,6 +83,61 @@ class TestPiiSessionAnonymize:
         assert snap == {"Acme Corp": "ORG_1"}
 
 
+class TestUnicodeAccentedNames:
+    """donna#51: accented client names must be caught by the FAST layer-1
+    regex, not silently passed to a cloud LLM. Before the fix the ASCII-only
+    [A-Z]/[a-z] classes skipped every diacritic name (Müller, Søderberg, …),
+    so an accented name reached the LLM un-redacted whenever the layer-2
+    detector was absent. Each test below FAILS against the old ASCII regex."""
+
+    def test_accented_person_name_anonymised(self):
+        s = PiiSession()
+        anon, _ = s.anonymize("Call with Anders Søderberg about the deal")
+        assert "Anders Søderberg" not in anon
+        assert "PERSON_1" in anon
+
+    @pytest.mark.parametrize(
+        "name", ["François Dupont", "Łukasz Kowalski", "Renée Müller"]
+    )
+    def test_diacritic_two_word_names_caught(self, name):
+        s = PiiSession()
+        anon, _ = s.anonymize(f"Meeting with {name} tomorrow")
+        assert name not in anon, f"{name!r} leaked past layer-1 (the donna#51 bug)"
+        assert "PERSON_1" in anon
+
+    def test_accented_org_with_suffix_anonymised(self):
+        s = PiiSession()
+        anon, _ = s.anonymize("Two hours on the Müller GmbH restructuring")
+        assert "Müller GmbH" not in anon
+        assert "ORG_1" in anon
+
+    def test_accented_name_restored_verbatim_on_deanonymize(self):
+        """Round-trip: the real accented name returns with diacritics intact,
+        so the locally-stored narrative reads correctly."""
+        s = PiiSession()
+        anon, _ = s.anonymize("Drafted the brief for Anders Søderberg")
+        restored = s.deanonymize(anon)
+        assert "Anders Søderberg" in restored
+        assert "PERSON_1" not in restored
+
+    def test_ascii_matching_unchanged_regression(self):
+        """Widening to Unicode must not alter ASCII matching."""
+        s = PiiSession()
+        anon, _ = s.anonymize("John Smith met Acme Corp in RE-2026-041")
+        assert "John Smith" not in anon and "PERSON_1" in anon
+        assert "Acme Corp" not in anon and "ORG_1" in anon
+        assert "CASE_1" in anon
+
+    def test_lowercase_phrase_not_over_redacted(self):
+        """The capital-START anchor is preserved: a lowercase multi-word
+        phrase is NOT mistaken for a name (no over-redaction regression)."""
+        s = PiiSession()
+        text = "reviewing the motion and the signed contract"
+        anon, mappings = s.anonymize(text)
+        assert anon == text
+        assert mappings == []
+
+
 # ---------------------------------------------------------------------------
 # Extractor integration: verify LLM receives anonymized text (H266 criterion)
 # ---------------------------------------------------------------------------

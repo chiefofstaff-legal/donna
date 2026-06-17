@@ -34,11 +34,23 @@ _ORG_SUFFIX_ALT = (
     r"Partners|Associates|Consulting|Services|Investments|Capital|Law|"
     r"Lawyers|Attorneys|Firm|Foundation|Trust"
 )
+# Unicode-aware letter classes (donna#51). The original ASCII-only [A-Z]/[a-z]
+# silently skipped accented client names — "Müller", "Søderberg", "Łukasz",
+# "François" were NOT matched by this fast deterministic layer, so an accented
+# name could reach a cloud LLM un-redacted whenever the layer-2 detector was
+# absent (the confidentiality failure the shield exists to prevent). These
+# classes cover Latin-1 Supplement + Latin Extended-A (European names) while
+# preserving the capital-START anchor — so common lowercase words are still not
+# matched as names. CASE refs stay ASCII (court codes are ASCII by construction).
+_UPPER = "A-ZÀ-ÖØ-ÞĀ-ſ"  # A-Z, À-Þ, Latin Ext-A
+_LOWER = "a-zß-öø-ÿĀ-ſ"  # a-z, ß-ÿ, Latin Ext-A
 _ENTITY_PATTERN = re.compile(
     r"(?P<CASE>\b[A-Z]{2,8}-\d{4}-\d{2,6}\b)"
-    r"|(?P<ORG>\b[A-Z][A-Za-z\-&\.\']{0,30}"
+    r"|(?P<ORG>\b[" + _UPPER + r"][" + _UPPER + _LOWER + r"\-&\.\']{0,30}"
     r"(?:\s+(?:" + _ORG_SUFFIX_ALT + r"))\.?)"
-    r"|(?P<PERSON>\b[A-Z][a-z]{1,20}(?:\s+[A-Z][a-z]{1,20}){1,2}\b)"
+    r"|(?P<PERSON>\b[" + _UPPER + r"][" + _LOWER + r"]{1,20}"
+    r"(?:\s+[" + _UPPER + r"][" + _LOWER + r"]{1,20}){1,2}\b)",
+    re.UNICODE,
 )
 
 

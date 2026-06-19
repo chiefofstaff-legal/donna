@@ -79,7 +79,7 @@ DONNA is an acronym. Each letter carries a load:
 | **D** | Decision | The unit of work. Every delegated action produces a structured **IDR (Intent Decision Record)** — not a chat log buried in someone's history. Who decided, on what evidence, with what confidence, captured as it happens. |
 | **O** | Oriented | The architecture orients around decisions — not documents (Mike, Harvey, Legora) and not chats (ChatGPT). The decision is the first-class object; documents and conversations are inputs to it. |
 | **N** | Network | Two networks. A network of **language models** — one intent routes across many providers via the open HAPPI/1.1 envelope, so switching vendor is config, not code. A network of **attorneys and matters** — decisions persist across the firm, not in one conversation. |
-| **N** | Notarisation | Every decision is signed and chained to the one before it, like a notary's stamp on each page of a logbook. The chain cannot be quietly altered; it replays for audit and for any partner who needs proof. (HMAC-SHA256 + `previous_hash` — see [`PROBAT.md`](PROBAT.md).) |
+| **N** | Notarisation | Every decision is signed and chained to the one before it, like a notary's stamp on each page of a logbook. The chain cannot be quietly altered; it replays for audit and for any partner who needs proof. Two signing schemes: **Ed25519** asymmetric signatures (a private key signs, a published public key verifies — so an outsider can confirm a record without being able to forge one) and **HMAC-SHA256** for shared-secret setups, both chained by `previous_hash` — see [`PROBAT.md`](PROBAT.md). The public widget at [free.donnaoss.com](https://free.donnaoss.com) signs with Ed25519 and publishes its public key on the page. |
 | **A** | (for) Attorneys | The legal vertical, exactly. Attorneys are both the audience DONNA serves and the practitioners who shape what it becomes. We defer to experienced lawyers on what is missing. |
 
 **The repository proves it on itself.** Every merge to `main` appends a signed
@@ -114,7 +114,11 @@ warrants it). [Why we built the licence axes this way →](https://about.grip-we
 **[donnaoss.com/demo](https://donnaoss.com/demo)** follows a senior lawyer's
 morning through a downloadable document packet — six matter artefacts plus the
 IDR audit log they trace to (8 delegated decisions, HMAC-SHA256 signed,
-`previous_hash` chained, replayable).
+`previous_hash` chained, replayable). The live, interactive widget at
+[free.donnaoss.com](https://free.donnaoss.com) goes a step further: it signs each
+entry with **Ed25519** and publishes its public key, so you verify a record
+against a key the server cannot use to forge one. `bin/notarise` verifies either
+scheme from any terminal.
 
 The hosted MVP at **[free.donnaoss.com](https://free.donnaoss.com)** (sign-in
 required) is open-sourced at **[chiefofstaff-legal/nexus](https://github.com/chiefofstaff-legal/nexus)**

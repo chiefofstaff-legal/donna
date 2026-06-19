@@ -7,6 +7,36 @@ All notable changes to DONNA are documented here. Format follows
 
 ### Added
 
+- **Ed25519 asymmetric IDR signing** (PR #53) — `bin/notarise`, `web/lib/idr.js`,
+  and `mcp-servers/donna/src/idr.ts` all gained an `ed25519` signing scheme
+  alongside the existing `hmac-sha256`. Ed25519 signs with a private key and
+  verifies with a published public key, so a third party can confirm a record
+  without holding anything that could forge one — HMAC, by contrast, is
+  server-forgeable because verifier and signer share one secret. The canonical
+  payload is byte-for-byte identical across both schemes and all three languages
+  (`scheme` is excluded from the signed bytes), so a JS- or Python-signed
+  Ed25519 chain cross-verifies in the other. Keys: `DONNA_NOTARISE_ED25519_PRIVKEY`
+  (32-byte seed hex) to sign, `DONNA_NOTARISE_ED25519_PUBKEY` to verify;
+  `bin/notarise pubkey` prints the public key.
+- **Public widget now signs with Ed25519** — `web/api/widget-notarise.js` switched
+  the free.donnaoss.com widget from HMAC-SHA256 to Ed25519 (the most-visible IDR
+  artefact was showcasing its weakest, server-forgeable rung). `web/api/widget-verify.js`
+  verifies stored chains against the public key; the notarise endpoint persists
+  every signed field (`decision_id`, `confidence`, `metadata`, `scheme`) so the
+  session-verify reconstruction reproduces the signed payload exactly. New
+  `web/api/widget-pubkey.js` publishes the live public key (only the public half
+  is ever emitted), and `web/widget.html` displays it so visitors verify against a
+  key they can independently check. Endpoints fail loud (503) when the key is
+  unconfigured — never a silent HMAC downgrade.
+- **`web/lib/idr.js` Ed25519 sign fix** — removed a dead `createPrivateKey` call
+  on the raw 32-byte seed that threw `asn1 ... header too long` before the correct
+  PKCS#8-wrapped key was built, so the JS Ed25519 sign path never completed. Now
+  proven against `bin/notarise` (a JS-signed Ed25519 chain verifies in Python).
+- **`web/tests/widget-notarise-ed25519.test.js`** — end-to-end Ed25519 round-trip
+  for the widget (notarise → store → verify), plus mutation anchors: a tampered
+  stored entry must fail, the signature must be 128-hex Ed25519 (not 64-hex HMAC),
+  notarise must 503 without the private seed (no silent HMAC fallback), and
+  widget-pubkey must never leak the private seed.
 - **`donna/integrations/clio.py`** — OAuth2 authorize leg (D5):
   `oauth_authorize_url()` derives the user-agent `/oauth/authorize` endpoint
   from `CLIO_API_BASE` (EU/US/non-standard bases, mirroring the token-URL
@@ -22,6 +52,11 @@ All notable changes to DONNA are documented here. Format follows
 
 ### Changed
 
+- **`client/tests/test_audio.py` + `test_voice_pipeline.py`** — guard the `numpy`
+  import with `pytest.importorskip("numpy")` so a contributor's bare env skips the
+  two audio-client test files instead of aborting collection of the WHOLE suite
+  (817 tests). CI installs `numpy` (declared in `client/pyproject.toml`) and runs
+  these files in full, so no coverage is lost there.
 - **Package version `0.1.0` → `0.2.0`** — consumers pinning donna via a git
   URL upgrade on a plain `pip install -r requirements.txt` (name+version
   change defeats pip's installed-requirement short-circuit, which kept

@@ -26,6 +26,20 @@
 //   signers because terminal-CLI users have different threat models.
 //   This wrapper bridges the two: it imports `lib/idr.js` directly (not
 //   `api/notarise.js`) so the underlying primitive remains untouched.
+//
+// SIGNING SCHEME — Ed25519 (asymmetric)
+//   The widget signs with Ed25519, NOT HMAC-SHA256. The distinction is the
+//   whole demonstration: an HMAC signature can be re-created by anyone who
+//   holds the secret key — including this server — so it proves only that
+//   *someone with the key* signed. An Ed25519 signature is made with a
+//   PRIVATE key the server never publishes and verified with a PUBLIC key
+//   the page does publish, so a visitor can confirm the record came from
+//   this signer WITHOUT being able to forge one. Tamper-EVIDENCE for the
+//   public demo therefore rests on the published public key, not on a shared
+//   secret. Requires DONNA_NOTARISE_ED25519_PRIVKEY (32-byte seed, hex) in
+//   the deploy env; absence fails loudly (503) — never a silent HMAC
+//   downgrade, which would re-introduce the server-forgeable rung the switch
+//   exists to remove.
 
 "use strict";
 
@@ -127,10 +141,10 @@ module.exports = async function handler(req, res) {
   const pii = storage.piiDeny(body.intent);
   if (pii) return res.status(400).json({ ok: false, error: "pii_blocked", detail: pii.reason, kind: pii.name });
 
-  const key = process.env[idr.ENV_KEY];
-  if (!key) {
-    console.error(`/api/widget-notarise: signing key not configured`);
-    return res.status(500).json({ ok: false, error: "service_unavailable" });
+  const ed25519SeedHex = process.env[idr.ENV_ED25519_KEY];
+  if (!ed25519SeedHex) {
+    console.error(`/api/widget-notarise: ${idr.ENV_ED25519_KEY} not configured`);
+    return res.status(503).json({ ok: false, error: "service_unavailable" });
   }
 
   try {
@@ -147,10 +161,27 @@ module.exports = async function handler(req, res) {
         confidence: 1.0,
         previousHash: prevHash,
         metadata: { source: "widget" },
-        key,
+        scheme: idr.SCHEME_ED25519,
+        ed25519SeedHex,
       });
       signed = out;
-      return { hash: out.hash, intent: body.intent, ts: out.record.timestamp, signature: out.record.signature, previous_hash: out.record.previous_hash, signer: out.record.signer };
+      // Persist EVERY field the canonical payload covers (decision_id,
+      // confidence, metadata, scheme) — not just the display subset. The
+      // session-verify path re-signs each stored entry from these fields, so a
+      // missing field would change the canonical bytes and break verification.
+      // Storing the full set keeps reconstruction byte-exact for any scheme.
+      return {
+        hash: out.hash,
+        decision_id: out.record.decision_id,
+        intent: body.intent,
+        ts: out.record.timestamp,
+        signature: out.record.signature,
+        previous_hash: out.record.previous_hash,
+        signer: out.record.signer,
+        confidence: out.record.confidence,
+        metadata: out.record.metadata,
+        scheme: out.record.scheme,
+      };
     });
     return res.status(200).json({ ok: true, record: signed.record, hash: signed.hash, position: push.position });
   } catch (e) {

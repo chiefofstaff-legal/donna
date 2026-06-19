@@ -39,11 +39,20 @@ module.exports = async function handler(req, res) {
     res.setHeader("Allow", "POST");
     return res.status(405).json({ ok: false, error: "method_not_allowed" });
   }
-  const key = process.env[idr.ENV_KEY];
-  if (!key) {
-    console.error(`/api/widget-verify: signing key not configured`);
-    return res.status(500).json({ ok: false, error: "service_unavailable" });
+  // The widget signs with Ed25519, so verification needs the PUBLIC key, not
+  // the HMAC secret. The public key is published on the page; visitors verify
+  // independently against it. Absence fails loudly — never a silent pass.
+  const pubkey = process.env[idr.ENV_ED25519_PUBKEY];
+  if (!pubkey) {
+    console.error(`/api/widget-verify: ${idr.ENV_ED25519_PUBKEY} not configured`);
+    return res.status(503).json({ ok: false, error: "service_unavailable" });
   }
+  // verifyRecord/verifyChain pick the algorithm per-record from record.scheme.
+  // We still read the HMAC key (when present) so a posted LEGACY hmac record or
+  // chain — e.g. PROBAT.md from the terminal rail — keeps verifying. An ed25519
+  // record ignores the HMAC key and uses the pubkey; an hmac record ignores the
+  // pubkey and uses the key. Both rails stay live.
+  const key = process.env[idr.ENV_KEY];
   const body = readBody(req);
   if (body === null) return res.status(400).json({ ok: false, error: "invalid_json" });
   const hasChainText = body && typeof body.chain === "string" && body.chain.length > 0;
@@ -54,11 +63,11 @@ module.exports = async function handler(req, res) {
       if (body.chain.length > MAX_CHAIN_BYTES) {
         return res.status(400).json({ ok: false, error: "chain_too_large" });
       }
-      const r = idr.verifyChain(body.chain, key);
+      const r = idr.verifyChain(body.chain, key, pubkey);
       return res.status(200).json(Object.assign({ ok: true }, r));
     }
     if (hasRecord) {
-      const r = idr.verifyRecord(body.record, key);
+      const r = idr.verifyRecord(body.record, key, pubkey);
       return res.status(200).json(Object.assign({ ok: true }, r));
     }
     // Default: verify the caller's OWN session chain by re-signing each entry
@@ -77,6 +86,12 @@ module.exports = async function handler(req, res) {
     let prev = idr.GENESIS_PREVIOUS_HASH;
     for (let i = 0; i < cleaned.length; i++) {
       const e = cleaned[i];
+      // Reconstruct the EXACT record that was signed. widget-notarise persists
+      // decision_id, confidence, metadata, and scheme alongside the signature,
+      // so the canonical payload (which excludes only `signature` + `scheme`)
+      // reproduces byte-for-byte. The fallbacks below cover legacy entries
+      // written before those fields were persisted — they carry the historical
+      // widget defaults so an old hmac chain still verifies.
       const record = {
         decision_id: e.decision_id || `idr_chain_${i}`,
         timestamp: e.ts,
@@ -87,8 +102,9 @@ module.exports = async function handler(req, res) {
         previous_hash: e.previous_hash || prev,
         metadata: e.metadata || { source: "widget" },
         signature: e.signature,
+        scheme: e.scheme || idr.SCHEME_HMAC,
       };
-      const single = idr.verifyRecord(record, key);
+      const single = idr.verifyRecord(record, key, pubkey);
       if (!single.valid) {
         return res.status(200).json({ ok: true, valid: false, reason: `entry ${i + 1}: ${single.reason}`, at: i + 1 });
       }

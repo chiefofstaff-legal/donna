@@ -8,8 +8,13 @@ from __future__ import annotations
 import threading
 from unittest.mock import MagicMock, patch
 
-import numpy as np
 import pytest
+
+# numpy is a real runtime dep (declared in client/pyproject.toml + installed in
+# CI), but a contributor's bare env may not have it. Skip — rather than abort the
+# WHOLE suite's collection — when it is absent. CI always has it, so this never
+# hides a regression there; it only keeps `pytest` usable in a minimal env.
+np = pytest.importorskip("numpy")
 
 from donna.audio import AudioCapture, AudioCaptureError
 

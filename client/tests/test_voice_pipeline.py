@@ -13,6 +13,11 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+# voice_pipeline transitively imports donna.audio, which imports numpy. numpy is
+# a declared client dep (present in CI), but skip — not abort collection — when a
+# contributor's bare env lacks it. See test_audio.py for the same guard rationale.
+pytest.importorskip("numpy")
+
 from donna.models import ClarifyRequest, Task, TimeEntry
 from donna.voice_pipeline import VoicePipeline, VoicePipelineError
 

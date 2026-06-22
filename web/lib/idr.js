@@ -29,6 +29,7 @@ const SCHEME_HMAC = "hmac-sha256";
 const SCHEME_ED25519 = "ed25519";
 const ENV_KEY = "DONNA_NOTARISE_KEY";
 const ENV_ED25519_KEY = "DONNA_NOTARISE_ED25519_PRIVKEY";
+const ENV_ED25519_PUBKEY = "DONNA_NOTARISE_ED25519_PUBKEY";
 
 // Canonical JSON: recursive sort_keys, no whitespace separators, ASCII-only.
 // Matches Python's json.dumps(d, sort_keys=True, separators=(",", ":")) which
@@ -82,9 +83,9 @@ function hmacSign(payloadStr, key) {
 // Ed25519 helpers using node:crypto KeyObject API (Node >= 15).
 function ed25519Sign(payloadStr, seedHex) {
   const seed = Buffer.from(seedHex.trim(), "hex");
-  const privKey = crypto.createPrivateKey({ key: seed, format: "der", type: "pkcs8" });
-  // Node's ed25519 requires PKCS#8 DER. Build the ASN.1 wrapper around the raw 32-byte seed.
-  // ASN.1 SEQUENCE { OID 1.3.101.112, OCTET STRING { OCTET STRING(seed) } }
+  // Node's ed25519 requires a PKCS#8 DER key — the raw 32-byte seed is NOT valid
+  // DER on its own (createPrivateKey on the bare seed throws "header too long").
+  // Wrap it: ASN.1 SEQUENCE { OID 1.3.101.112, OCTET STRING { OCTET STRING(seed) } }.
   const pkcs8Header = Buffer.from("302e020100300506032b657004220420", "hex");
   const pkcs8Key = Buffer.concat([pkcs8Header, seed]);
   const priv = crypto.createPrivateKey({ key: pkcs8Key, format: "der", type: "pkcs8" });
@@ -176,8 +177,8 @@ function verifyRecord(record, key, pubkeyHex) {
   const payload = canonicalPayload(record);
 
   if (scheme === SCHEME_ED25519) {
-    const pub = pubkeyHex || process.env["DONNA_NOTARISE_ED25519_PUBKEY"];
-    if (!pub) return { valid: false, reason: "DONNA_NOTARISE_ED25519_PUBKEY not set; cannot verify ed25519 signature" };
+    const pub = pubkeyHex || process.env[ENV_ED25519_PUBKEY];
+    if (!pub) return { valid: false, reason: `${ENV_ED25519_PUBKEY} not set; cannot verify ed25519 signature` };
     try {
       const ok = ed25519Verify(payload, record.signature, pub);
       if (!ok) return { valid: false, reason: `ed25519 signature invalid` };
@@ -272,6 +273,7 @@ module.exports = {
   SCHEME_ED25519,
   ENV_KEY,
   ENV_ED25519_KEY,
+  ENV_ED25519_PUBKEY,
   sign,
   verifyRecord,
   verifyChain,

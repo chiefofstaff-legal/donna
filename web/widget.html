@@ -40,7 +40,7 @@
                               padding: 0.75rem 1rem; background: var(--paper-2); }
   details.terminal-expander summary { font-family: var(--mono); font-size: 0.78rem;
                                       color: var(--accent-2); cursor: pointer; list-style: none;
-                                      min-height: 32px; display: inline-flex; align-items: center; }
+                                      min-height: 44px; display: inline-flex; align-items: center; }
   details.terminal-expander summary::before { content: "▸ "; margin-right: 0.25rem; }
   details.terminal-expander[open] summary::before { content: "▾ "; }
   details.terminal-expander pre { margin-top: 0.75rem; padding: 0.75rem;
@@ -50,6 +50,12 @@
   .explainer { font-family: var(--mono); font-size: 0.78rem; color: var(--muted);
                margin-top: 1rem; padding: 0.75rem; border-left: 3px solid var(--rule);
                line-height: 1.5; }
+  .pubkey-block { margin-top: 0.75rem; padding: 0.75rem; background: var(--paper-2);
+                  border: 1px solid var(--rule); border-radius: 6px; }
+  .pubkey-block .lbl { display: block; color: var(--muted); font-size: 0.7rem;
+                       text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 0.35rem; }
+  .pubkey-val { display: block; font-family: var(--mono); font-size: 0.72rem;
+                color: var(--accent-2); word-break: break-all; user-select: all; }
   .err-msg { display: none; font-family: var(--mono); font-size: 0.78rem; color: var(--invalid);
              margin-top: 0.5rem; padding: 0.5rem 0.75rem; border-left: 3px solid var(--invalid);
              background: rgba(181,62,21,0.06); }
@@ -82,7 +88,7 @@
     <div class="verbs">paste · notarise · re-check</div>
     <h1>Paste any sentence. Watch it become a tamper-evident record. Re-check it from any terminal.</h1>
     <!-- RESHAPE: copy made factual for session-private; V>>+Craig to finalise voice -->
-    <h2 class="subh1">No signup. Real HMAC-SHA256 signatures. The chain you append to is your private session chain — ephemeral, expires in 24h.</h2>
+    <h2 class="subh1">No signup. Real Ed25519 signatures you can check against our published public key — we cannot forge them, and neither can anyone else. The chain you append to is your private session chain — ephemeral, expires in 24h.</h2>
     <p class="hero-disclaimer">"Cryptographic notarisation" here means <strong>tamper-evidence</strong> — a hash chain you can re-check. It is <strong>not</strong> legal or notarial notarisation, not a third-party digital signature, and not legal advice. <a href="/terms">See our full Terms</a>.</p>
     <div class="chain-status" id="chainStatus">Loading the live chain…</div>
   </section>
@@ -144,7 +150,20 @@
       <div class="chain-list" id="chainList" aria-live="polite"></div>
       <div class="explainer">
         Each entry's hash includes the previous entry's hash. Change any byte of any entry,
-        and every entry after it fails the integrity check. We sign with HMAC-SHA256 — a tamper-evidence check, not a third-party digital signature.
+        and every entry after it fails the integrity check. We sign each entry with
+        <strong>Ed25519</strong>, an asymmetric signature: we hold a private key the server never
+        publishes, and you check the signature against the public key below — so you can confirm a
+        record came from this signer without ever being able to forge one. (Tamper-evidence, not a
+        third-party legal digital signature — see our Terms.)
+      </div>
+      <div class="pubkey-block" id="pubkeyBlock">
+        <span class="lbl">Demo Ed25519 public key (verify against this):</span>
+        <code class="pubkey-val" id="pubkeyVal">loading…</code>
+        <details class="terminal-expander">
+          <summary>Verify a shared chain from your terminal against this key</summary>
+          <pre id="pubkeySnippet">export DONNA_NOTARISE_ED25519_PUBKEY=&lt;the key above&gt;
+bin/notarise verify --chain your-chain.md</pre>
+        </details>
       </div>
     </section>
 
@@ -160,7 +179,7 @@
 
   <footer>
     <div class="row">
-      <span class="badge">Demo key · 24h chain TTL</span>
+      <span class="badge">Ed25519 demo key · 24h chain TTL</span>
       <span class="badge">AGPL-3.0 · CodeTonight-SA/donna</span>
     </div>
     <div class="row" style="margin-top:0.5rem;">
@@ -363,6 +382,27 @@
       chainStat.textContent = "Network error loading the chain. Refresh to retry.";
     });
   }
+  // Fetch + display the live Ed25519 public key the server signs with, so a
+  // visitor verifies against the key actually in use (never a stale literal).
+  // Only the public half is ever served (see web/api/widget-pubkey.js).
+  function loadPubkey() {
+    var valEl = $("pubkeyVal");
+    var snip = $("pubkeySnippet");
+    if (!valEl) return;
+    return fetchJson("/api/widget-pubkey").then(function (r) {
+      if (r.status === 200 && r.body && r.body.ok && r.body.pubkey) {
+        valEl.textContent = r.body.pubkey;
+        if (snip) {
+          snip.textContent = "export DONNA_NOTARISE_ED25519_PUBKEY=" + r.body.pubkey +
+                             "\nbin/notarise verify --chain your-chain.md";
+        }
+      } else {
+        valEl.textContent = "unavailable — the demo signing key is not configured yet.";
+      }
+    }).catch(function () {
+      valEl.textContent = "unavailable — network error fetching the public key.";
+    });
+  }
   function postNotarise(intent) {
     return fetchJson("/api/widget-notarise", {
       method: "POST",
@@ -465,7 +505,7 @@
           bad_origin: "Cross-origin request rejected.",
           intent_too_long: "Too long for a single entry.",
           intent_required: "Please paste a sentence first.",
-          service_unavailable: "Signing key not configured — please email the team.",
+          service_unavailable: "Signing key not configured on the server — please email the team.",
           sign_failed: "Signing failed — please try again."
         }[code] || ("Could not notarise: " + code);
         setErr(nice);
@@ -551,6 +591,7 @@
   function boot() {
     updateCounter();
     updateTerminalSnippet();
+    loadPubkey();
     var hashed = parseShareHash();
     if (hashed && hashed.record) {
       // Render archive-mode card from inline record even if chain expired it.

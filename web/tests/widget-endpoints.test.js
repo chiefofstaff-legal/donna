@@ -18,6 +18,10 @@ const chainHandler = require("../api/widget-chain.js");
 const verifyHandler = require("../api/widget-verify.js");
 
 const DEMO_KEY = "donna-public-demo-key-2026-05-08";
+// Deterministic test seed — never a production key (matches the mcp-servers and
+// Python parity vectors: 32 bytes of 0xaa). The pubkey is DERIVED, never hardcoded.
+const TEST_SEED_HEX = "a".repeat(64);
+const TEST_PUBKEY_HEX = idr.ed25519PubkeyHex(TEST_SEED_HEX);
 
 // Minimal Vercel-style { req, res } doubles. res is chainable like the real one.
 function mockRes() {
@@ -28,16 +32,22 @@ function mockRes() {
   return res;
 }
 
-// The handlers read process.env[idr.ENV_KEY] at REQUEST time. Set it for the
-// duration of an async handler call, then restore — never leak across tests.
+// The handlers read process.env at REQUEST time. The verify endpoint now needs
+// the Ed25519 PUBLIC key (the widget signs with Ed25519); the HMAC key stays set
+// too so legacy-hmac record/chain modes keep verifying. Set for the duration of
+// an async handler call, then restore — never leak across tests.
 async function withKey(fn) {
-  const prev = process.env[idr.ENV_KEY];
+  const prevHmac = process.env[idr.ENV_KEY];
+  const prevPub = process.env[idr.ENV_ED25519_PUBKEY];
   process.env[idr.ENV_KEY] = DEMO_KEY;
+  process.env[idr.ENV_ED25519_PUBKEY] = TEST_PUBKEY_HEX;
   try {
     return await fn();
   } finally {
-    if (prev === undefined) delete process.env[idr.ENV_KEY];
-    else process.env[idr.ENV_KEY] = prev;
+    if (prevHmac === undefined) delete process.env[idr.ENV_KEY];
+    else process.env[idr.ENV_KEY] = prevHmac;
+    if (prevPub === undefined) delete process.env[idr.ENV_ED25519_PUBKEY];
+    else process.env[idr.ENV_ED25519_PUBKEY] = prevPub;
   }
 }
 
@@ -82,16 +92,18 @@ test("widget-verify: non-POST method → 405", async () => {
   assert.strictEqual(res.body.error, "method_not_allowed");
 });
 
-test("widget-verify: signing key not configured → 500 service_unavailable", async () => {
-  const prev = process.env[idr.ENV_KEY];
-  delete process.env[idr.ENV_KEY];
+test("widget-verify: Ed25519 public key not configured → 503 service_unavailable", async () => {
+  // The widget verifies Ed25519, so the PUBLIC key is the required config now.
+  // Its absence must fail loudly (503) — never a silent pass.
+  const prev = process.env[idr.ENV_ED25519_PUBKEY];
+  delete process.env[idr.ENV_ED25519_PUBKEY];
   try {
     const res = mockRes();
     await verifyHandler({ method: "POST", body: {} }, res);
-    assert.strictEqual(res.statusCode, 500);
+    assert.strictEqual(res.statusCode, 503);
     assert.strictEqual(res.body.error, "service_unavailable");
   } finally {
-    if (prev !== undefined) process.env[idr.ENV_KEY] = prev;
+    if (prev !== undefined) process.env[idr.ENV_ED25519_PUBKEY] = prev;
   }
 });
 

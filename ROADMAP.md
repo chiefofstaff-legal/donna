@@ -94,6 +94,55 @@ intent   routing  chain    PR review orchestration
 - Test vectors for tamper-detection and replay
 - Compliance mappings (EU AI Act, ISO 27001, SOC 2 Type II)
 
+### W3.5 · The provenance trajectory — how strong the proof gets
+
+The IDR audit chain (W3) is the first rung. The substrate it sits on is being
+strengthened along one axis: **how hard is it to fake, and how independently can
+an outsider check it?** Each rung is stronger than the last, and none replaces the
+one before — they stack.
+
+1. **HMAC-SHA256 signatures** — *shipped.* A shared secret signs each record. Good
+   for a closed setup where everyone trusts the key holder. Weakness: anyone with
+   the secret — including the server — can produce a valid signature, so it proves
+   *someone with the key* signed, not *who*.
+
+2. **Ed25519 asymmetric signatures** — *shipped.* A private key signs; a public key
+   verifies. The server publishes the public key but never the private one, so an
+   outsider can confirm a record came from this signer **without** being able to
+   forge one. The live public widget at [free.donnaoss.com](https://free.donnaoss.com)
+   now signs with Ed25519 and publishes its public key on the page. A
+   JS-signed chain verifies in Python and vice-versa — the proof is portable across
+   every language that implements `happi.md`.
+
+3. **ML-DSA-65 post-quantum signatures** — *next rung, in progress.* ML-DSA (the
+   NIST-standardised lattice signature, FIPS 204) survives an attacker with a
+   quantum computer, which Ed25519 would not. For documents that must stay provable
+   for decades — exactly the legal use case — the signature itself has to outlast
+   the cryptography it was made with. This is the open half of harness task #2177.
+
+4. **HAPPI memory-chain (v1.2)** — *shipped in the substrate, surfacing into DONNA
+   next.* The IDR chain proves *what was decided*. The memory-chain proves *what the
+   agent knew, and when* — a signed, tamper-evident record of the context an AI saw
+   before it acted, chained the same way IDRs are. Together they answer both
+   "what did it decide?" and "on what information?".
+
+5. **Bitcoin / Merkle anchoring** — *research pilot
+   ([happi-anchor-pilot](https://github.com/CodeTonight-SA/happi-anchor-pilot)).*
+   Take the head of a signed chain, fold it into a Merkle root, and anchor that root
+   into the Bitcoin blockchain. After that, the proof no longer depends on trusting
+   DONNA's servers *at all*: anyone can check, offline, that the chain existed in
+   exactly its current form at the moment it was anchored — backed by the most
+   independently-verified ledger in the world. This is the strongest rung: external,
+   permanent, and verifiable by a stranger with no access to our systems.
+
+**How DONNA relates to the pilot**: DONNA is the flagship that demonstrates rungs
+1–2 today (signed IDR chains you can verify from any terminal). The anchor-pilot
+proves rung 5 in isolation. The trajectory is to bring them together so a DONNA
+session's IDR chain-head can be anchored to a Merkle root — the full
+IDR → memory-chain → Bitcoin stack — rather than only the signature rung. Rungs 3
+and 5 land in DONNA as the substrate matures; the order is driven by what a real
+regulator-facing matter needs first.
+
 ### W4 · AI-agent PR review (novel IP, building)
 
 **What this does**: as the project scales, increasing PR volume will come from AI agents — Claude, GPT, Gemini, Llama, and others — operating on behalf of contributors. Reviewing those PRs by hand does not scale. DONNA includes a substrate for AI-agent-authored PR review where the maintainers' role becomes triage and judgement, not line-by-line review.

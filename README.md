@@ -220,6 +220,42 @@ See [CHANGELOG.md](CHANGELOG.md) for the running record.
 
 ---
 
+## Cryptographic provenance (GRASP)
+
+DONNA can optionally record a tamper-evident, Bitcoin-anchorable provenance receipt
+for every export, workflow handoff, and document analysis via the
+[GRASP](https://github.com/CodeTonight-SA/grasp) package.
+
+When GRASP is **not** installed, DONNA behaviour is byte-for-byte identical to the
+base install — the bridge is fail-open and never raises. No behaviour change; no
+new required dependency.
+
+When GRASP **is** installed, each operation attaches a signed IDR (Intent Decision
+Record) receipt to its output. Receipts appear as an optional `grasp_provenance`
+field in export payloads and `grasp_receipt` on `DocAnalysis` objects.
+
+**Install GRASP (optional):**
+
+```bash
+pip install "git+https://github.com/CodeTonight-SA/grasp"
+```
+
+**What gets recorded:**
+
+| Operation | IDR action | Bridge function |
+|-----------|-----------|-----------------|
+| Time-entry export (Clio JSON) | `donna.export` | `record_export_provenance` |
+| Workflow handoff | `donna.workflow.handoff` | `record_handoff_provenance` |
+| Legal document analysis | `donna.legal_doc.analyse` | `record_doc_analysis_provenance` |
+
+GRASP state is written to `$GRASP_HOME` (default `~/.grasp/`). Set that variable
+to isolate per-firm or per-tenant state.
+
+> **Privacy note.** GRASP receives only structured IDR fields (counts, hashes,
+> actor names). Raw transcripts and document text never leave the bridge layer.
+
+---
+
 ## Contributing
 
 Contributions welcome — see [CONTRIBUTING.md](CONTRIBUTING.md) for the

@@ -14,16 +14,18 @@ Usage::
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import re
 import xml.etree.ElementTree as ET
 import zipfile
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
 from donna.config import Config
 from donna.prompts import PromptLibrary
+import donna.grasp_provenance as _grasp
 
 # ---------------------------------------------------------------------------
 # Public types
@@ -41,6 +43,7 @@ class DocAnalysis:
     clauses: list[str]
     confidence: float
     page_count: int
+    grasp_receipt: dict | None = field(default=None)
 
 
 # ---------------------------------------------------------------------------
@@ -224,6 +227,9 @@ def analyse(
     llm = client or _build_client(config)
     clauses = _extract_clauses(text, config, llm)
 
+    sha256 = hashlib.sha256(p.read_bytes()).hexdigest()
+    grasp_receipt = _grasp.record_doc_analysis_provenance(sha256, p.stem)
+
     return DocAnalysis(
         text=text,
         has_handwriting=_detect_handwriting(text),
@@ -231,4 +237,5 @@ def analyse(
         clauses=clauses,
         confidence=_confidence(text, clauses),
         page_count=page_count,
+        grasp_receipt=grasp_receipt if grasp_receipt.get("ok") else None,
     )

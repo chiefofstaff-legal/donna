@@ -22,6 +22,8 @@ import json
 from dataclasses import dataclass
 from datetime import datetime, timezone
 
+import donna.grasp_provenance as _grasp
+
 
 _GENESIS = "genesis"
 
@@ -85,6 +87,13 @@ class Workflow:
             record_hash=_sha256(raw),
         )
         self._chain.append(record)
+        _grasp.record_handoff_provenance({
+            "seq": record.seq,
+            "from_actor": record.from_actor,
+            "to_actor": record.to_actor,
+            "record_hash": record.record_hash,
+            "timestamp": record.timestamp,
+        })
         return record
 
     def chain(self) -> list[HandoffRecord]:

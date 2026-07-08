@@ -122,4 +122,27 @@ Tests mock all hardware and external APIs. No microphone or live API key require
 
 For anything not listed: open an issue with the label `install` and the output of `bin/notarise verify --chain PROBAT.md` (it tells us your environment is at least chain-healthy).
 
+## Optional: cryptographic provenance via GRASP
+
+DONNA's GRASP bridge is **opt-in**. If the package is absent, nothing changes.
+
+```bash
+pip install "git+https://github.com/CodeTonight-SA/grasp"
+```
+
+After installation, set `GRASP_HOME` if you want state in a non-default location:
+
+```bash
+export GRASP_HOME=/var/donna/grasp-state   # defaults to ~/.grasp/
+```
+
+Verify the bridge is active:
+
+```python
+from donna.grasp_provenance import record_export_provenance
+print(record_export_provenance([]))  # {"ok": False, ...} = absent; {"ok": True, ...} = present
+```
+
+No restart of the MCP server is required; the bridge is evaluated at import time.
+
 *DONNA probat.*

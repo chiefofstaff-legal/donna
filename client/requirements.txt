@@ -4,3 +4,6 @@ webrtcvad>=2.0.10
 numpy>=1.24.0
 python-dotenv>=1.0.0
 cryptography>=42.0.0
+
+# Optional: cryptographic provenance receipts (fail-open when absent)
+# pip install "git+https://github.com/CodeTonight-SA/grasp"

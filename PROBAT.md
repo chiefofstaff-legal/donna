@@ -110,6 +110,236 @@ The first three entries are the project's bootstrap. They are signed with the pu
 }
 ```
 
+### Entry 5 · merge: Merge pull request #41 from chiefofstaff-legal/docs/readme-liv...
+
+```idr
+{
+  "confidence": 1.0,
+  "decision_id": "idr_1783541171033935070",
+  "intent": "merge: Merge pull request #41 from chiefofstaff-legal/docs/readme-live-demo-funnel",
+  "metadata": {
+    "author": "Laurie Scheepers",
+    "commit_sha": "f0ddb0f36901da73f72462c0a1a9c44c5b3af40a"
+  },
+  "previous_hash": "01c07175c1cd1c5217b7e540f87b665d8a9354993f90f84ad33f3e377c2a6c78",
+  "protocol": "happi/1.1",
+  "scheme": "hmac-sha256",
+  "signature": "bdf54b37d85cd7fa1c4ecc89f281f7a85b82c3a3c677ff518e462b1fe6f34ee8",
+  "signer": "github-actions",
+  "timestamp": "2026-07-08T20:06:11Z"
+}
+```
+
+### Entry 6 · merge: feat(clio): OAuth2 authorize leg — oauth_authorize_url + build...
+
+```idr
+{
+  "confidence": 1.0,
+  "decision_id": "idr_1783541171034944067",
+  "intent": "merge: feat(clio): OAuth2 authorize leg \u2014 oauth_authorize_url + build_authorize_redirect (#42)",
+  "metadata": {
+    "author": "Laurie Scheepers",
+    "commit_sha": "7506c902a9e7501f3efec531ad22c57b035ddfaa",
+    "pr": 42
+  },
+  "previous_hash": "cd61aefea85b1b048f8bfd898cda3ea4c90beafb12a6bf797e8273cdb907774f",
+  "protocol": "happi/1.1",
+  "scheme": "hmac-sha256",
+  "signature": "0ef6c995887db77b7dfdbb73b1ed2f8490805a6f2ad554b4f687806b76d0a2c1",
+  "signer": "github-actions",
+  "timestamp": "2026-07-08T20:06:11Z"
+}
+```
+
+### Entry 7 · merge: chore: add GitHub issue templates (bug, feature, config) (#43)
+
+```idr
+{
+  "confidence": 1.0,
+  "decision_id": "idr_1783541171035904795",
+  "intent": "merge: chore: add GitHub issue templates (bug, feature, config) (#43)",
+  "metadata": {
+    "author": "Laurie Scheepers",
+    "commit_sha": "73355999c758bfc245533e52154da1e782ca1452",
+    "pr": 43
+  },
+  "previous_hash": "8d91e8e04414c720309768a2e024603c17f8b65fa2063504afa1caef6a3bae28",
+  "protocol": "happi/1.1",
+  "scheme": "hmac-sha256",
+  "signature": "26d57d9b39b6d8fb0cc28220f39696b9a966c6254c03c14fd34a8f6903ee1994",
+  "signer": "github-actions",
+  "timestamp": "2026-07-08T20:06:11Z"
+}
+```
+
+### Entry 8 · merge: feat(widget): ship session-private IDR widget — honest tamper-...
+
+```idr
+{
+  "confidence": 1.0,
+  "decision_id": "idr_1783541171036952966",
+  "intent": "merge: feat(widget): ship session-private IDR widget \u2014 honest tamper-evidence framing (V>>+Craig ratified) (#46)",
+  "metadata": {
+    "author": "Laurie Scheepers",
+    "commit_sha": "9fc6aef24ed69962b164256b30e58f37e5c9b541",
+    "pr": 46
+  },
+  "previous_hash": "29e3f29db4b3f902af25a48ecf983f3486dbcfb6f57b5b53309ec42028888cfb",
+  "protocol": "happi/1.1",
+  "scheme": "hmac-sha256",
+  "signature": "27ef13cba475e6f9637fb475a22e060d2b01dc4e5a5b231aa3a2968289da5716",
+  "signer": "github-actions",
+  "timestamp": "2026-07-08T20:06:11Z"
+}
+```
+
+### Entry 9 · merge: feat(widget): publish Terms of Use page + wire disclaimer/foot...
+
+```idr
+{
+  "confidence": 1.0,
+  "decision_id": "idr_1783541171038027316",
+  "intent": "merge: feat(widget): publish Terms of Use page + wire disclaimer/footer links (#47)",
+  "metadata": {
+    "author": "Laurie Scheepers",
+    "commit_sha": "e5c3f1f39826826708812f67a2398e3d77e9ce7b",
+    "pr": 47
+  },
+  "previous_hash": "ac3ed3887b9364a5e3b5590c5aa74a57a9f801c8edc26dab4966f5003926882b",
+  "protocol": "happi/1.1",
+  "scheme": "hmac-sha256",
+  "signature": "64247205db29aa21c9c09dbe582530ce53e9ee18f344f4ff616b1847e4399406",
+  "signer": "github-actions",
+  "timestamp": "2026-07-08T20:06:11Z"
+}
+```
+
+### Entry 10 · merge: fix(test): idr parity verifies a demo-key chain, not live PROB...
+
+```idr
+{
+  "confidence": 1.0,
+  "decision_id": "idr_1783541171039227742",
+  "intent": "merge: fix(test): idr parity verifies a demo-key chain, not live PROBAT.md (#48)",
+  "metadata": {
+    "author": "Laurie Scheepers",
+    "commit_sha": "e3cb98cff4194451dd4fb8c1f2d52c31aaedb721",
+    "pr": 48
+  },
+  "previous_hash": "bd77fd4419de0c6a98f62808dbc8647e71dddb0b833e46517078e7420f521908",
+  "protocol": "happi/1.1",
+  "scheme": "hmac-sha256",
+  "signature": "015fdabfb665f84b98255bb9ba8a38bb51af7a3c23bfa2ac7e5132c762ed4686",
+  "signer": "github-actions",
+  "timestamp": "2026-07-08T20:06:11Z"
+}
+```
+
+### Entry 11 · merge: test(widget): endpoint contract coverage for widget-chain + wi...
+
+```idr
+{
+  "confidence": 1.0,
+  "decision_id": "idr_1783541171042387213",
+  "intent": "merge: test(widget): endpoint contract coverage for widget-chain + widget-verify (#49)",
+  "metadata": {
+    "author": "Laurie Scheepers",
+    "commit_sha": "ee5e9314c5fde9531e7c0a6c1caf29606fc472c0",
+    "pr": 49
+  },
+  "previous_hash": "fea6bb83ffc9d3f978b992cbdf9707271645362c62162e595d3387bc01c1268a",
+  "protocol": "happi/1.1",
+  "scheme": "hmac-sha256",
+  "signature": "aeebe8f7f42417221ab9c4b2ef777d0fbc01b0c91932126383f348221dbdbfd3",
+  "signer": "github-actions",
+  "timestamp": "2026-07-08T20:06:11Z"
+}
+```
+
+### Entry 12 · merge: fix(pii): Unicode-aware entity regex catches accented client n...
+
+```idr
+{
+  "confidence": 1.0,
+  "decision_id": "idr_1783541171044680323",
+  "intent": "merge: fix(pii): Unicode-aware entity regex catches accented client names (#51) (#52)",
+  "metadata": {
+    "author": "Laurie Scheepers",
+    "commit_sha": "950d47b92bca77f5f6ed0bbbb87f2045d9bd9b71",
+    "pr": 52
+  },
+  "previous_hash": "b83671adad196c7756bc3b4f358093dcc629f8fbf848c837cab5ad53b3880908",
+  "protocol": "happi/1.1",
+  "scheme": "hmac-sha256",
+  "signature": "3cba58bfcfbf8e32a8d2a27958f0a6ec6be9ed8409333d243ffad6018d047f5e",
+  "signer": "github-actions",
+  "timestamp": "2026-07-08T20:06:11Z"
+}
+```
+
+### Entry 13 · merge: feat(idr): add Ed25519 asymmetric signing alongside HMAC-SHA25...
+
+```idr
+{
+  "confidence": 1.0,
+  "decision_id": "idr_1783541171047229763",
+  "intent": "merge: feat(idr): add Ed25519 asymmetric signing alongside HMAC-SHA256 (#53)",
+  "metadata": {
+    "author": "Laurie Scheepers",
+    "commit_sha": "74b39591fb7891019c5094134994806c87ca5a77",
+    "pr": 53
+  },
+  "previous_hash": "5824c6af2bc9b9aa6ae9575288396cdc680e0041ce5285d8c5fe013c7886a9d1",
+  "protocol": "happi/1.1",
+  "scheme": "hmac-sha256",
+  "signature": "42f06dec262175ee3005cbe78629805d38b168b3cd880baa8f351bd32681680c",
+  "signer": "github-actions",
+  "timestamp": "2026-07-08T20:06:11Z"
+}
+```
+
+### Entry 14 · merge: feat(widget): Ed25519-sign the public demo + surface the full ...
+
+```idr
+{
+  "confidence": 1.0,
+  "decision_id": "idr_1783541171049785565",
+  "intent": "merge: feat(widget): Ed25519-sign the public demo + surface the full provenance moat (#54)",
+  "metadata": {
+    "author": "Laurie Scheepers",
+    "commit_sha": "914300c8024b605474e5fef8176a74c22363b764",
+    "pr": 54
+  },
+  "previous_hash": "37c6e6c8fb823be2d5df3486f98950ab1e7662951c6dc2f02a7647fb33bec817",
+  "protocol": "happi/1.1",
+  "scheme": "hmac-sha256",
+  "signature": "cc91d4d8b1a15fae1541fc4a1076c74ebb933ab3dd65b596efe1423c73389d5b",
+  "signer": "github-actions",
+  "timestamp": "2026-07-08T20:06:11Z"
+}
+```
+
+### Entry 15 · merge: feat(grasp): optional cryptographic provenance bridge (#55)
+
+```idr
+{
+  "confidence": 1.0,
+  "decision_id": "idr_1783541171052478583",
+  "intent": "merge: feat(grasp): optional cryptographic provenance bridge (#55)",
+  "metadata": {
+    "author": "V",
+    "commit_sha": "212124d5d71bb285dfe5339d3b2f64869bbbf428",
+    "pr": 55
+  },
+  "previous_hash": "5a2c9db8d490c6f455eb45a7a1721ccc7c991a6a45de4c28ff9fb3adfeb8290a",
+  "protocol": "happi/1.1",
+  "scheme": "hmac-sha256",
+  "signature": "e6b36960c86d450bbd05b601228e7d41c40a169978a001609a70a4a81bd5f80d",
+  "signer": "github-actions",
+  "timestamp": "2026-07-08T20:06:11Z"
+}
+```
+
 ---
 
 ## Why this file exists

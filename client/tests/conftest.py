@@ -21,17 +21,43 @@ VOICE_PROMPTS_DIR = Path(__file__).resolve().parent.parent.parent / "voice-promp
 
 @pytest.fixture
 def fake_grasp():
-    """Inject a fake grasp package into sys.modules so bridge functions succeed."""
+    """Inject a fake grasp package whose callables enforce the REAL grasp API
+    signatures — a bridge regression to a fabricated call shape (e.g. the
+    2026-07-08 ``build_idr(action=..., home=...)``) raises TypeError here and
+    fails the suite instead of passing against a shape-agnostic mock."""
+    from dataclasses import dataclass, field
+
+    @dataclass
+    class _FakeIDR:
+        """Mirrors the fields of grasp.idr.PrecogIDR that the bridge touches."""
+        id: str
+        predecessor_idr: str | None
+        depth: int
+        fingerprint: str
+        kind: str
+        decision: dict
+        prompt: str
+        inputs: dict = field(default_factory=dict)
+
+    def _build_idr(prompt, fingerprint, decision, predecessor_idr, depth,
+                   *, kind="precog-decision", inputs=None, decision_anatomy=None):
+        return _FakeIDR(id="precog-test-0001", predecessor_idr=predecessor_idr,
+                        depth=depth, fingerprint=fingerprint, kind=kind,
+                        decision=decision, prompt=prompt, inputs=inputs or {})
+
+    def _checkpoint(next_step, summary="", *, title=None, tier="feedback",
+                    paramount=False, records_idr=None, path=None,
+                    head_pointer=None, model_versions=None):
+        return None
+
     _idr = types.ModuleType("grasp.idr")
-    _idr.build_idr = MagicMock(return_value="idr-test-001")
-    _idr.append_idr = MagicMock(return_value="idr-test-002")
-    _idr.content_addr = MagicMock(return_value="addr-abc123")
+    _idr.build_idr = MagicMock(side_effect=_build_idr)
+    _idr.append_idr = MagicMock(return_value=None)
+    _idr.content_addr = MagicMock(return_value="sha256:addr-abc123")
+    _idr.read_idr_chain = MagicMock(return_value=[])
 
     _ctx = types.ModuleType("grasp.context_chain")
-    _ctx.checkpoint = MagicMock(return_value=None)
-
-    _prov = types.ModuleType("grasp.provenance")
-    _prov.record_proveit_provenance = MagicMock(return_value={"ok": True, "receipt": "r1"})
+    _ctx.checkpoint = MagicMock(side_effect=_checkpoint)
 
     _grasp = types.ModuleType("grasp")
 
@@ -39,20 +65,16 @@ def fake_grasp():
         "grasp": _grasp,
         "grasp.idr": _idr,
         "grasp.context_chain": _ctx,
-        "grasp.provenance": _prov,
     }
     orig = {k: sys.modules.get(k) for k in mods}
     sys.modules.update(mods)
 
-    # Force bridge module to re-evaluate _GRASP_AVAILABLE with fake package present
-    import importlib
     import donna.grasp_provenance as _bridge
     _bridge._GRASP_AVAILABLE = True
     _bridge._idr = _idr
     _bridge._ctx = _ctx
-    _bridge._prov = _prov
 
-    yield {"idr": _idr, "ctx": _ctx, "prov": _prov}
+    yield {"idr": _idr, "ctx": _ctx}
 
     for k, v in orig.items():
         if v is None:

@@ -4,7 +4,13 @@
 
 Tests cover:
 - absent grasp package → sentinel dict returned, never raises
-- present (fake) grasp package → calls delegated, receipt returned
+- present (fake, real-signature) grasp package → calls delegated with the
+  REAL grasp API shapes, record dict returned
+- chain threading: second record links the first (predecessor/depth)
+- grasp exception → failed sentinel, never re-raises
+
+The fake package enforces the real ``grasp`` signatures, so a regression to
+a fabricated call shape fails these tests with TypeError.
 """
 
 from __future__ import annotations
@@ -14,23 +20,14 @@ import pytest
 import donna.grasp_provenance as _bridge
 
 
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
-
 def _absent():
     return {"ok": False, "reason": "grasp-provenance not installed"}
 
-
-# ---------------------------------------------------------------------------
-# Absent-package tests (no fake_grasp fixture — grasp NOT in sys.modules)
-# ---------------------------------------------------------------------------
 
 class TestAbsentGrasp:
     """All public bridge functions return the sentinel dict when grasp is absent."""
 
     def setup_method(self):
-        # Ensure _GRASP_AVAILABLE is False for these tests
         self._orig = _bridge._GRASP_AVAILABLE
         _bridge._GRASP_AVAILABLE = False
 
@@ -56,37 +53,53 @@ class TestAbsentGrasp:
         assert _bridge.record_doc_analysis_provenance("", "").get("ok") is False
 
 
-# ---------------------------------------------------------------------------
-# Present (fake) grasp tests
-# ---------------------------------------------------------------------------
-
 @pytest.mark.grasp
 class TestPresentGrasp:
-    """Bridge delegates to fake grasp and returns ok=True receipts."""
+    """Bridge delegates to the fake grasp with real API shapes."""
 
     def test_record_export_provenance(self, fake_grasp):
         result = _bridge.record_export_provenance([{"id": "e1", "matter": "Smith"}])
         assert result["ok"] is True
-        assert "idr_id" in result
-        assert "receipt" in result
-        fake_grasp["idr"].build_idr.assert_called_once()
-        fake_grasp["prov"].record_proveit_provenance.assert_called_once()
+        assert result["idr_id"] == "precog-test-0001"
+        assert result["content_addr"] == "sha256:addr-abc123"
+        kwargs = fake_grasp["idr"].build_idr.call_args.kwargs
+        assert kwargs["kind"] == "donna-export"
+        assert kwargs["predecessor_idr"] == "human:donna-operator"
+        assert kwargs["depth"] == 0
+        assert kwargs["decision"]["count"] == 1
+        fake_grasp["idr"].append_idr.assert_called_once()
 
-    def test_record_handoff_provenance(self, fake_grasp):
+    def test_record_handoff_provenance_cross_links_belief(self, fake_grasp):
         payload = {"seq": 1, "from_actor": "alice", "to_actor": "bob",
                    "record_hash": "dead", "timestamp": "2024-01-01T00:00:00+00:00"}
         result = _bridge.record_handoff_provenance(payload)
         assert result["ok"] is True
-        fake_grasp["idr"].build_idr.assert_called_once()
-        fake_grasp["ctx"].checkpoint.assert_called_once()
-        fake_grasp["prov"].record_proveit_provenance.assert_called_once()
+        ck = fake_grasp["ctx"].checkpoint.call_args.kwargs
+        assert ck["records_idr"] == "sha256:addr-abc123"
+        assert "seq=1" in ck["summary"]
 
     def test_record_doc_analysis_provenance(self, fake_grasp):
         result = _bridge.record_doc_analysis_provenance("sha256hex", "agreement")
         assert result["ok"] is True
-        assert result["content_addr"] == "addr-abc123"
-        fake_grasp["idr"].content_addr.assert_called_once_with("sha256hex", home=_bridge._grasp_home())
-        fake_grasp["idr"].build_idr.assert_called_once()
+        assert result["content_addr"] == "sha256:addr-abc123"
+        kwargs = fake_grasp["idr"].build_idr.call_args.kwargs
+        assert kwargs["decision"]["sha256"] == "sha256hex"
+        # content_addr is computed over the serialised record, never a bare hash
+        (arg,), _ = fake_grasp["idr"].content_addr.call_args
+        assert isinstance(arg, dict) and arg["kind"] == "donna-legal-doc-analysis"
+
+    def test_second_record_threads_the_chain(self, fake_grasp):
+        first = _bridge.record_export_provenance([])
+        assert first["ok"] is True
+        head = fake_grasp["idr"].build_idr.side_effect(
+            prompt="", fingerprint="", decision={},
+            predecessor_idr="human:donna-operator", depth=0)
+        fake_grasp["idr"].read_idr_chain.return_value = [head]
+        second = _bridge.record_doc_analysis_provenance("beef", "brief")
+        assert second["ok"] is True
+        kwargs = fake_grasp["idr"].build_idr.call_args.kwargs
+        assert kwargs["predecessor_idr"] == "precog-test-0001"
+        assert kwargs["depth"] == 1
 
     def test_grasp_exception_returns_failed_sentinel(self, fake_grasp):
         """If grasp raises unexpectedly, bridge returns failed sentinel, never re-raises."""

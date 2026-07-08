@@ -8,6 +8,7 @@ import json
 from typing import List
 
 from donna.models import TimeEntry
+import donna.grasp_provenance as _grasp
 
 # Clio time entry field mapping
 # https://app.clio.com/api/v4/documentation#tag/TimeEntries
@@ -28,6 +29,11 @@ def _entry_to_clio(entry: TimeEntry) -> dict:
 def to_clio_json(entries: List[TimeEntry]) -> str:
     """Return Clio bulk-import JSON string for the given entries."""
     payload = {"data": [_entry_to_clio(e) for e in entries]}
+    receipt = _grasp.record_export_provenance(
+        [{"id": e.id, "matter": e.matter or ""} for e in entries]
+    )
+    if receipt.get("ok"):
+        payload["grasp_provenance"] = receipt
     return json.dumps(payload, indent=2)
 
 
@@ -66,3 +72,8 @@ def export_range(
     if fmt not in dispatch:
         raise ValueError(f"Unknown export format {fmt!r}. Choose 'json' or 'csv'.")
     return dispatch[fmt](entries)
+
+
+# Aliases expected by mcp_server.py
+export_json = to_clio_json
+export_csv = to_csv

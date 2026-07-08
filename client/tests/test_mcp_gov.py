@@ -245,3 +245,35 @@ def test_dispatch_unknown_tool():
     result = _dispatch({"name": "not_a_tool", "arguments": {}})
     assert "error" in _text(result)
     assert "unknown tool" in _text(result)
+
+
+# ---------------------------------------------------------------------------
+# GRASP provenance integration
+# ---------------------------------------------------------------------------
+
+@pytest.mark.grasp
+def test_workflow_handoff_with_grasp_receipt(fake_grasp):
+    """Handoff records provenance via GRASP bridge without error."""
+    result = _call("donna_workflow_handoff", workflow_id="wf-grasp-1",
+                   from_actor="alice", to_actor="bob", idr={"action": "review"})
+    s = _structured(result)
+    assert s["seq"] == 0
+    assert len(s["record_hash"]) == 64
+    # GRASP bridge was called (fake injected by fixture)
+    fake_grasp["idr"].build_idr.assert_called_once()
+
+
+@pytest.mark.grasp
+def test_workflow_handoff_graceful_without_grasp():
+    """Handoff succeeds even when GRASP package is absent (fail-open)."""
+    import donna.grasp_provenance as _bridge
+    orig = _bridge._GRASP_AVAILABLE
+    _bridge._GRASP_AVAILABLE = False
+    try:
+        result = _call("donna_workflow_handoff", workflow_id="wf-nograsp-1",
+                       from_actor="carol", to_actor="dave", idr={"action": "sign"})
+        s = _structured(result)
+        assert s["seq"] == 0
+        assert "error" not in _text(result)
+    finally:
+        _bridge._GRASP_AVAILABLE = orig
